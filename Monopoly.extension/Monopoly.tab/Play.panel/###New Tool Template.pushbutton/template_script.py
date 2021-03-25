@@ -2,26 +2,40 @@ __doc__ = "XXXXXXXXXX"
 __title__ = "Move"
 
 from pyrevit import forms, DB, revit, script
-
+from time import sleep
+from System.Collections.Generic import List
 
 ################## main code below #####################
-columns = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_Columns).WhereElementIsNotElementType().ToElements()
+generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
 with revit.Transaction("Move"):
-    for column in columns:
+    for player in generic_models:
 
-        initial_pt = column.Location.Point
-        final_pt = column.Location.Point + DB.XYZ(10,0,0)
+        initial_pt = player.Location.Point
+        vector = DB.XYZ(5,0,0)
+        final_pt = initial_pt + vector
         line = DB.Line.CreateBound(initial_pt, final_pt)
         mid_pt = line.Evaluate(0.5, True)
-        mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + 3)
-        arc = DB.Arc.Create(initial_pt, final_pt, mid_pt)
+        mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + vector.GetLength()/5.0)
+        arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
+        #pt_list = List[DB.XYZ]([])
+        #spline = DB.NurbSpline.Create()
+        #DB.CurveElement.SetGeometryCurve(arc, False)
 
-        step = 10
+
+        step = 50
         for i in range(step):
-            temp_location = arc.Evaluate(i/step, True)
+            pt_para = float(i)/step
+            temp_location = arc.Evaluate(pt_para, True)
+            #print temp_location.Z
 
-            column.Location.Point = temp_location
+            #temp_location = line.Evaluate(pt_para, True)
 
+            player.Location.Point = temp_location
+            revit.uidoc.RefreshActiveView()
+            safety = 0.01#so there is division by zero
+            speed = -pt_para * (pt_para - 1) + safety#faster in middle
+            pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
+            sleep(pause_time * 0.1)
 
 
 ########note to self to research
