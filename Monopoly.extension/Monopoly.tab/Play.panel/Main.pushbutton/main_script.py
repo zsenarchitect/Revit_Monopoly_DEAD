@@ -5,39 +5,89 @@ from pyrevit import forms, DB, revit, script
 from time import sleep
 from System.Collections.Generic import List
 
+def get_players():
+    generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
+
+    player_collection = []
+    player_names = []
+    for generic_model in generic_models:
+        family_name = str(generic_model.Symbol.Family.Name)
+        #print family_name
+        if _PlayerNameKeyword in family_name:
+            if family_name in player_names:
+                forms.alert("Should not have more than one of same player in game.")
+                script.exit()
+            player_collection.append(generic_model)
+            player_names.append(family_name)
+    return player_collection
+
+
+def pick_player(players):
+    names = [get_player_name(x) for x in players]
+    name = forms.SelectFromList.show(names, title = "Pick your player!", button_name='Go!')
+    player = get_player_by_name(name, players)
+    return player
+
+def move_player(player):
+    initial_pt = player.Location.Point
+    vector = DB.XYZ(5,0,0)
+    final_pt = initial_pt + vector
+    line = DB.Line.CreateBound(initial_pt, final_pt)
+    mid_pt = line.Evaluate(0.5, True)
+    mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + vector.GetLength()/5.0)
+    arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
+    #pt_list = List[DB.XYZ]([])
+    #spline = DB.NurbSpline.Create()
+    #DB.CurveElement.SetGeometryCurve(arc, False)
+
+
+    step = 50
+    for i in range(step):
+        pt_para = float(i)/step
+        temp_location = arc.Evaluate(pt_para, True)
+        #print temp_location.Z
+
+        #temp_location = line.Evaluate(pt_para, True)
+
+        player.Location.Point = temp_location
+        revit.doc.Regenerate()
+        revit.uidoc.RefreshActiveView()
+        safety = 0.01#so there is division by zero
+        speed = -pt_para * (pt_para - 1) + safety#faster in middle
+        pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
+        sleep(pause_time * 0.1)
+
+
+def get_player_name(player):
+    family_name = player.Symbol.Family.Name
+    player_name = family_name.split(_PlayerNameKeyword)[1]
+    return player_name
+
+def get_player_by_name(name, players):
+    for player in players:
+        if name == get_player_name(player):
+            return player
+
+
 ################## main code below #####################
-generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
-with revit.Transaction("Move"):
-    for player in generic_models:
-
-        initial_pt = player.Location.Point
-        vector = DB.XYZ(5,0,0)
-        final_pt = initial_pt + vector
-        line = DB.Line.CreateBound(initial_pt, final_pt)
-        mid_pt = line.Evaluate(0.5, True)
-        mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + vector.GetLength()/5.0)
-        arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
-        #pt_list = List[DB.XYZ]([])
-        #spline = DB.NurbSpline.Create()
-        #DB.CurveElement.SetGeometryCurve(arc, False)
+_PlayerNameKeyword = "$Player_"
+players = get_players()
+player = pick_player(players)
+player_name = get_player_name(player)
+with revit.Transaction("Make Move for '{}'".format(player_name)):
+    move_player(player)
 
 
-        step = 50
-        for i in range(step):
-            pt_para = float(i)/step
-            temp_location = arc.Evaluate(pt_para, True)
-            #print temp_location.Z
-
-            #temp_location = line.Evaluate(pt_para, True)
-
-            player.Location.Point = temp_location
-            revit.uidoc.RefreshActiveView()
-            safety = 0.01#so there is division by zero
-            speed = -pt_para * (pt_para - 1) + safety#faster in middle
-            pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
-            sleep(pause_time * 0.1)
 
 
+
+
+
+"""
+DisplacementElement class
+
+
+"""
 ########note to self to research
 #GUI window?
 #how did select from para window show extra icon  instance/type by list?
