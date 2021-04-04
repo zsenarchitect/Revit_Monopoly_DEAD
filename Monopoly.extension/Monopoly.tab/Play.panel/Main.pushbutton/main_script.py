@@ -3,6 +3,7 @@ __title__ = "Move"
 
 from pyrevit import forms, DB, revit, script
 from time import sleep
+import CAMERA
 from System.Collections.Generic import List
 
 def get_players():
@@ -42,16 +43,21 @@ def move_player(player):
 
 
     step = 50
-    for i in range(step):
+    for i in range(step + 1):
         pt_para = float(i)/step
         temp_location = arc.Evaluate(pt_para, True)
         #print temp_location.Z
-
         #temp_location = line.Evaluate(pt_para, True)
-
         player.Location.Point = temp_location
+
+
+        perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
+        CAMERA.update_camera(perspective_view, temp_location)
+
+
         revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
+        revit.uidoc.UpdateAllOpenViews()
         safety = 0.01#so there is division by zero
         speed = -pt_para * (pt_para - 1) + safety#faster in middle
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
@@ -60,7 +66,16 @@ def move_player(player):
 
 def get_player_name(player):
     family_name = player.Symbol.Family.Name
-    player_name = family_name.split(_PlayerNameKeyword)[1]
+    player_family_name = family_name.split(_PlayerNameKeyword)[1]
+    """
+    print player_family_name
+    print "!!!!"
+    for para in player.Symbol.Parameters:
+        print para.Definition.Name
+    print "####"
+    """
+    player_user_name = player.Symbol.LookupParameter("_property_name").AsString()
+    player_name = "{}[{}]".format(player_user_name,player_family_name)
     return player_name
 
 def get_player_by_name(name, players):
@@ -71,11 +86,34 @@ def get_player_by_name(name, players):
 
 ################## main code below #####################
 _PlayerNameKeyword = "$Player_"
+#user_name_para_guid = #"_property_name"
+
+
+
+
 players = get_players()
 player = pick_player(players)
 player_name = get_player_name(player)
+
+
+#current_view = revit.doc.ActiveView
+#CAMERA.switch_view_to("$Camera_Main", revit.doc)
+#revit.uidoc.RefreshActiveView()
+
+with revit.Transaction("redraw views"):
+    CAMERA.zoom_to_player(player)
+    revit.doc.Regenerate()
+    revit.uidoc.RefreshActiveView()
+    revit.uidoc.UpdateAllOpenViews()
+
+    sleep(1)
+
+
 with revit.Transaction("Make Move for '{}'".format(player_name)):
     move_player(player)
+
+
+#CAMERA.switch_view_to("BATTLE GROUND", revit.doc)
 
 
 
