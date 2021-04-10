@@ -3,8 +3,55 @@ __title__ = "Move"
 
 from pyrevit import forms, DB, revit, script
 from time import sleep
+import random
 import CAMERA
 from System.Collections.Generic import List
+#!/usr/bin/env python
+# coding=utf-8
+
+def dice():
+    sample_raw = [-2, -1, 1, 2, 3, 4, 5, 6, 10]#9 item
+    sample = []
+    for item in sample_raw:
+        if item < 0:
+            sample.extend([item]*2)
+        elif item <=6:
+            sample.extend([item]*6)
+        else:
+            sample.extend([item]*1)
+
+    random.shuffle(sample)
+    #print sample
+    weight = (20, 20, 50, 50, 50, 50, 50, 50, 10)#9 item
+    #return random.choices(sample, weights = weight , k = 1)[0]
+    #print "dice number = {}".format(raw_dice)
+    raw_dice = random.choice(sample)
+    forms.alert("dice = {}".format(raw_dice))
+    return raw_dice
+
+def get_marker_by_id(marker_id):
+    generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
+
+    for generic_model in generic_models:
+        family_name = str(generic_model.Symbol.Family.Name)
+        #print family_name
+        if family_name == "MAP_MARKER" and generic_model.LookupParameter("_marker_position_ID").AsInteger() == marker_id:
+            return generic_model
+
+def get_random_event():
+    event_collection = []
+    print ( u"你好，世界" )
+
+
+
+
+    pass
+
+def get_marker_description(marker):
+    return marker.LookupParameter("_marker_event_description").AsString()
+
+def get_marker_data(marker):
+    return marker.LookupParameter("_marker_event_data").AsString()
 
 def get_players():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
@@ -22,20 +69,23 @@ def get_players():
             player_names.append(family_name)
     return player_collection
 
-
 def pick_player(players):
     names = [get_player_name(x) for x in players]
     name = forms.SelectFromList.show(names, title = "Pick your player!", button_name='Go!')
     player = get_player_by_name(name, players)
     return player
 
-def move_player(player):
+def move_player(player, target_marker_id):
     initial_pt = player.Location.Point
+    """
     vector = DB.XYZ(5,0,0)
     final_pt = initial_pt + vector
+    """
+    final_pt = get_marker_by_id(target_marker_id).Location.Point
+
     line = DB.Line.CreateBound(initial_pt, final_pt)
     mid_pt = line.Evaluate(0.5, True)
-    mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + vector.GetLength()/5.0)
+    mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/5.0)
     arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
     #pt_list = List[DB.XYZ]([])
     #spline = DB.NurbSpline.Create()
@@ -51,18 +101,18 @@ def move_player(player):
         player.Location.Point = temp_location
 
 
-        perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
-        CAMERA.update_camera(perspective_view, temp_location)
+        #perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
+        #CAMERA.update_camera(perspective_view, temp_location)
 
 
         revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
         revit.uidoc.UpdateAllOpenViews()
-        safety = 0.01#so there is division by zero
+        safety = 0.01#so there is never division by zero
         speed = -pt_para * (pt_para - 1) + safety#faster in middle
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
-        sleep(pause_time * 0.1)
-
+        factor = 0.05#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
+        sleep(pause_time * factor)
 
 def get_player_name(player):
     family_name = player.Symbol.Family.Name
@@ -83,9 +133,27 @@ def get_player_by_name(name, players):
         if name == get_player_name(player):
             return player
 
+class player_agent:
+    def __init__(self, generic_model):
+        self.model = generic_model
+        #self.name = generic_model.Symbol.LookupParameter("_property_name").AsString()
+        self.position_id = generic_model.Symbol.LookupParameter("_property_positionID").AsInteger()
+        #self.luck = generic_model.Symbol.LookupParameter("_property_luck").AsInteger()
+        #self.money = generic_model.Symbol.LookupParameter("_asset_money").AsInteger()
+        self.direction = generic_model.Symbol.LookupParameter("_asset_direction").AsInteger()
+
+    def update_marker_id(self, id):
+        self.model.Symbol.LookupParameter("_property_positionID").Set(id)
+
+    def update_money(self, amount):
+        current_money = self.model.Symbol.LookupParameter("_asset_money").AsInteger()
+        self.model.Symbol.LookupParameter("_asset_money").Set(current_money + int(amount))
+
+
 
 ################## main code below #####################
 _PlayerNameKeyword = "$Player_"
+_MaxMarkerID = 31
 #user_name_para_guid = #"_property_name"
 
 
@@ -99,7 +167,7 @@ player_name = get_player_name(player)
 #current_view = revit.doc.ActiveView
 #CAMERA.switch_view_to("$Camera_Main", revit.doc)
 #revit.uidoc.RefreshActiveView()
-
+"""
 with revit.Transaction("redraw views"):
     CAMERA.zoom_to_player(player)
     revit.doc.Regenerate()
@@ -107,14 +175,47 @@ with revit.Transaction("redraw views"):
     revit.uidoc.UpdateAllOpenViews()
 
     sleep(1)
-
+"""
 
 with revit.Transaction("Make Move for '{}'".format(player_name)):
-    move_player(player)
+    agent = player_agent(player)
+    raw_dice = dice()#this can be the dice
+    if raw_dice < 0:
+        dice_direction = -1
+    else:
+        dice_direction = 1
+    total_step = abs(raw_dice)
+
+    for step in range(total_step):
+        try:
+            new_position_id = agent.position_id + agent.direction * dice_direction
+            move_player(agent.model, new_position_id)
+            agent.position_id = new_position_id
+        except:#reach max position, return to zero
+            new_position_id = 0 if dice_direction == 1 else _MaxMarkerID
+            move_player(agent.model, new_position_id)
+            agent.position_id = new_position_id
+
+        current_marker = get_marker_by_id(new_position_id)
+        marker_description = get_marker_description(current_marker)
+        marker_data = get_marker_data(current_marker)
+        #print marker_description, marker_data
+        if "*payday*" in marker_description:
+
+            agent.update_money(marker_data)
+            forms.alert("Passing Payday.\nGetting ${}.".format(marker_data))
 
 
+
+    #print "current_position_id = {}".format(new_position_id)
+    agent.update_marker_id(new_position_id)
+    if "*random event*" in marker_description:
+        #agent.update_money(marker_data)
+        forms.alert("randon event!")
 #CAMERA.switch_view_to("BATTLE GROUND", revit.doc)
-
+output = script.get_output()
+killtime = 30
+output.self_destruct(killtime)
 
 
 
