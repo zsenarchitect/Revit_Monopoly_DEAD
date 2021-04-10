@@ -38,14 +38,16 @@ def get_marker_by_id(marker_id):
         if family_name == "MAP_MARKER" and generic_model.LookupParameter("_marker_position_ID").AsInteger() == marker_id:
             return generic_model
 
-def get_random_event():
-    event_collection = []
-    print ( u"你好，世界" )
+def get_random_event_card():
+    generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
 
+    random.shuffle(generic_models)
+    for generic_model in generic_models:
+        family_name = str(generic_model.Symbol.Family.Name)
+        #print family_name
+        if family_name == "CARD":
+            return generic_model
 
-
-
-    pass
 
 def get_marker_description(marker):
     return marker.LookupParameter("_marker_event_description").AsString()
@@ -111,7 +113,7 @@ def move_player(player, target_marker_id):
         safety = 0.01#so there is never division by zero
         speed = -pt_para * (pt_para - 1) + safety#faster in middle
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
-        factor = 0.05#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
+        factor = 0.02#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
         sleep(pause_time * factor)
 
 def get_player_name(player):
@@ -142,12 +144,50 @@ class player_agent:
         #self.money = generic_model.Symbol.LookupParameter("_asset_money").AsInteger()
         self.direction = generic_model.Symbol.LookupParameter("_asset_direction").AsInteger()
 
-    def update_marker_id(self, id):
+    def update_position_id(self, id):
         self.model.Symbol.LookupParameter("_property_positionID").Set(id)
 
     def update_money(self, amount):
         current_money = self.model.Symbol.LookupParameter("_asset_money").AsInteger()
         self.model.Symbol.LookupParameter("_asset_money").Set(current_money + int(amount))
+
+    def update_hold(self, amount):
+        current_hold_location = self.model.Symbol.LookupParameter("_property_hold_status").AsString()
+        current_hold_amount = self.model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
+        if current_hold_location:
+            forms.alert("Currently staying in {}".format(current_hold_location))
+        #self.model.Symbol.LookupParameter("_asset_money").Set(current_money + int(amount))
+
+    def send_to_hospital(self, hold_amount):
+
+        move_player(agent.model, 100)#100 is the id for hospital
+        self.model.Symbol.LookupParameter("_property_hold_status").Set("Hospital")
+        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
+
+    def hold_in_place(self, hold_amount):
+        self.model.Symbol.LookupParameter("_property_hold_status").Set("In Place")
+        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
+
+    def process_event(self, card):
+        title = event_card.LookupParameter("_marker_event_title").AsString()
+        description = event_card.LookupParameter("_marker_event_description").AsString()
+        data = event_card.LookupParameter("_marker_event_data").AsString()
+        forms.alert("{}".format(title))
+        if "*hospital*" in description:
+            hold_amount = data
+            agent.send_to_hospital(hold_amount)
+        if "*hold in place*" in description:
+            hold_amount = data
+            agent.hold_in_place(hold_amount)
+        if "*money*" in description:
+            agent.update_money(data)
+        if "*walk*" in description:
+            new_position_id = agent.position_id + agent.direction * data
+            move_player(agent.model, new_position_id)
+            agent.position_id = new_position_id
+
+
+        pass
 
 
 
@@ -208,10 +248,13 @@ with revit.Transaction("Make Move for '{}'".format(player_name)):
 
 
     #print "current_position_id = {}".format(new_position_id)
-    agent.update_marker_id(new_position_id)
+    agent.update_position_id(new_position_id)
     if "*random event*" in marker_description:
-        #agent.update_money(marker_data)
-        forms.alert("randon event!")
+        event_card = get_random_event_card()
+        agent.process_event(event_card)
+    if "*hospital*" in marker_description:
+        agent.send_to_hospital(marker_data)
+
 #CAMERA.switch_view_to("BATTLE GROUND", revit.doc)
 output = script.get_output()
 killtime = 30
