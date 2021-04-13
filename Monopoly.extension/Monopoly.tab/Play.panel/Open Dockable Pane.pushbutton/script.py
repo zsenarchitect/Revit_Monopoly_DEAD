@@ -6,9 +6,12 @@ __title__ = 'Open\nPanel'
 __context__ = 'zero-doc'
 
 
-from pyrevit import forms
+from pyrevit import forms, UI
 
 
 test_panel_uuid = "6b59123c-e13a-43d4-a98d-11c19cd00577"
 
-forms.open_dockable_panel(test_panel_uuid)
+#print UI.GetDockablePane(test_panel_uuid)
+
+
+forms.open_dockable_panel("6b59123c-e13a-43d4-a98d-11c19cd00577")

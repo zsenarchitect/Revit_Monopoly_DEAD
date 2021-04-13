@@ -49,11 +49,23 @@ def get_random_event_card():
             return generic_model
 
 
+
+def get_material_by_name(name):
+    all_materials = DB.FilteredElementCollector(revit.doc).OfClass(DB.Material).WhereElementIsNotElementType().ToElements()
+    for material in all_materials:
+        #print material.Name
+        if material.Name == name:
+            return material
+
+
 def get_marker_description(marker):
     return marker.LookupParameter("_marker_event_description").AsString()
 
 def get_marker_data(marker):
     return marker.LookupParameter("_marker_event_data").AsString()
+
+def get_marker_title(marker):
+    return marker.LookupParameter("_marker_event_title").AsString()
 
 def get_players():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
@@ -113,8 +125,7 @@ def move_player(player, target_marker_id):
         safety = 0.01#so there is never division by zero
         speed = -pt_para * (pt_para - 1) + safety#faster in middle
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
-        factor = 0.02#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
-        sleep(pause_time * factor)
+        sleep(pause_time * _SpeedFactor)
 
 def get_player_name(player):
     family_name = player.Symbol.Family.Name
@@ -168,11 +179,12 @@ class player_agent:
         self.model.Symbol.LookupParameter("_property_hold_status").Set("In Place")
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
 
-    def process_event(self, card):
-        title = event_card.LookupParameter("_marker_event_title").AsString()
-        description = event_card.LookupParameter("_marker_event_description").AsString()
-        data = event_card.LookupParameter("_marker_event_data").AsString()
-        forms.alert("{}".format(title))
+    def process_event(self, title, description, data):
+
+        if title != "none":
+            forms.alert("{}".format(title))
+
+
         if "*hospital*" in description:
             hold_amount = data
             agent.send_to_hospital(hold_amount)
@@ -182,10 +194,11 @@ class player_agent:
         if "*money*" in description:
             agent.update_money(data)
         if "*walk*" in description:
-            new_position_id = agent.position_id + agent.direction * data
+            new_position_id = agent.position_id + agent.direction * int(data)
             move_player(agent.model, new_position_id)
             agent.position_id = new_position_id
-
+        if "*pit*" in description:
+            agent.stuck_in_pit(data)
 
         pass
 
@@ -194,6 +207,9 @@ class player_agent:
 ################## main code below #####################
 _PlayerNameKeyword = "$Player_"
 _MaxMarkerID = 31
+_SpeedFactor = 0.02#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
+
+
 #user_name_para_guid = #"_property_name"
 
 
@@ -237,6 +253,7 @@ with revit.Transaction("Make Move for '{}'".format(player_name)):
             agent.position_id = new_position_id
 
         current_marker = get_marker_by_id(new_position_id)
+        marker_title = get_marker_title(current_marker)
         marker_description = get_marker_description(current_marker)
         marker_data = get_marker_data(current_marker)
         #print marker_description, marker_data
@@ -251,9 +268,14 @@ with revit.Transaction("Make Move for '{}'".format(player_name)):
     agent.update_position_id(new_position_id)
     if "*random event*" in marker_description:
         event_card = get_random_event_card()
-        agent.process_event(event_card)
-    if "*hospital*" in marker_description:
-        agent.send_to_hospital(marker_data)
+
+        card_title = get_marker_title(event_card)
+        card_description = get_marker_description(event_card)
+        card_data = get_marker_data(event_card)
+
+        agent.process_event(card_title, card_description, card_data)
+    else:
+        agent.process_event(marker_title, marker_description, marker_data)
 
 #CAMERA.switch_view_to("BATTLE GROUND", revit.doc)
 output = script.get_output()
