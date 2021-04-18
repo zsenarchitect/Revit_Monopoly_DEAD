@@ -8,26 +8,50 @@ import CAMERA
 from System.Collections.Generic import List
 #!/usr/bin/env python
 # coding=utf-8
+def feet_to_mm(dist):
+    return (dist/3.28084)*1000
 
-def dice():
+def mm_to_feet(dist):
+    return (dist /1000) * 3.28084
+
+def dice(luck):
+    luck = int(luck)
     sample_raw = [-2, -1, 1, 2, 3, 4, 5, 6, 10]#9 item
+    #sample_raw = [-2,-2,-2,-2,-2,-2,-2,-2, -1]#9 item
     sample = []
     for item in sample_raw:
-        if item < 0:
+        if item < 0 and luck < 30:
             sample.extend([item]*2)
-        elif item <=6:
-            sample.extend([item]*6)
+        elif item >= 5 and luck > 70:
+            sample.extend([item]*2)
         else:
             sample.extend([item]*1)
 
     random.shuffle(sample)
     #print sample
-    weight = (20, 20, 50, 50, 50, 50, 50, 50, 10)#9 item
+    #weight = (20, 20, 50, 50, 50, 50, 50, 50, 10)#9 item
     #return random.choices(sample, weights = weight , k = 1)[0]
     #print "dice number = {}".format(raw_dice)
     raw_dice = random.choice(sample)
     forms.alert("dice = {}".format(raw_dice))
     return raw_dice
+
+def find_max_marker_id_on_map():
+    safety = 100
+    counter = 0
+    while counter < safety:
+        if get_marker_by_id(counter + 1) == None:
+            return counter
+        counter += 1
+
+def get_pit():
+    generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
+
+    for generic_model in generic_models:
+        family_name = str(generic_model.Symbol.Family.Name)
+        #print family_name
+        if family_name == "PIT":
+            return generic_model
 
 def get_marker_by_id(marker_id):
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
@@ -35,10 +59,10 @@ def get_marker_by_id(marker_id):
     for generic_model in generic_models:
         family_name = str(generic_model.Symbol.Family.Name)
         #print family_name
-        if family_name == "MAP_MARKER" and generic_model.LookupParameter("_marker_position_ID").AsInteger() == marker_id:
+        if family_name == "MAP_MARKER" and generic_model.LookupParameter("_marker_position_ID").AsInteger() == int(marker_id):
             return generic_model
 
-def get_random_event_card():
+def get_random_event_card(luck):
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
 
     random.shuffle(generic_models)
@@ -46,9 +70,8 @@ def get_random_event_card():
         family_name = str(generic_model.Symbol.Family.Name)
         #print family_name
         if family_name == "CARD":
-            return generic_model
-
-
+            if luck - 50 < generic_model.LookupParameter("_property_luck").AsInteger() < luck + 50:
+                return generic_model
 
 def get_material_by_name(name):
     all_materials = DB.FilteredElementCollector(revit.doc).OfClass(DB.Material).WhereElementIsNotElementType().ToElements()
@@ -56,16 +79,6 @@ def get_material_by_name(name):
         #print material.Name
         if material.Name == name:
             return material
-
-
-def get_marker_description(marker):
-    return marker.LookupParameter("_marker_event_description").AsString()
-
-def get_marker_data(marker):
-    return marker.LookupParameter("_marker_event_data").AsString()
-
-def get_marker_title(marker):
-    return marker.LookupParameter("_marker_event_title").AsString()
 
 def get_players():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
@@ -89,22 +102,18 @@ def pick_player(players):
     player = get_player_by_name(name, players)
     return player
 
-def move_player(player, target_marker_id):
+def move_player(agent, target_marker_id):
+    player = agent.model
+    target_marker_id = int(target_marker_id)
     initial_pt = player.Location.Point
-    """
-    vector = DB.XYZ(5,0,0)
-    final_pt = initial_pt + vector
-    """
     final_pt = get_marker_by_id(target_marker_id).Location.Point
-
     line = DB.Line.CreateBound(initial_pt, final_pt)
     mid_pt = line.Evaluate(0.5, True)
-    mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/5.0)
+    mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/2.0)
     arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
     #pt_list = List[DB.XYZ]([])
     #spline = DB.NurbSpline.Create()
     #DB.CurveElement.SetGeometryCurve(arc, False)
-
 
     step = 50
     for i in range(step + 1):
@@ -113,19 +122,17 @@ def move_player(player, target_marker_id):
         #print temp_location.Z
         #temp_location = line.Evaluate(pt_para, True)
         player.Location.Point = temp_location
-
-
         #perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
         #CAMERA.update_camera(perspective_view, temp_location)
-
-
         revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
-        revit.uidoc.UpdateAllOpenViews()
+        #revit.uidoc.UpdateAllOpenViews()
         safety = 0.01#so there is never division by zero
         speed = -pt_para * (pt_para - 1) + safety#faster in middle
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
         sleep(pause_time * _SpeedFactor)
+    player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
+    agent.position_id = target_marker_id
 
 def get_player_name(player):
     family_name = player.Symbol.Family.Name
@@ -146,32 +153,110 @@ def get_player_by_name(name, players):
         if name == get_player_name(player):
             return player
 
+def get_marker_description(marker):
+    return marker.LookupParameter("_marker_event_description").AsString()
+
+def get_marker_data(marker):
+    return marker.LookupParameter("_marker_event_data").AsString()
+
+def get_marker_title(marker):
+    return marker.LookupParameter("_marker_event_title").AsString()
+
 class player_agent:
     def __init__(self, generic_model):
         self.model = generic_model
-        #self.name = generic_model.Symbol.LookupParameter("_property_name").AsString()
+        self.name = generic_model.Symbol.LookupParameter("_property_name").AsString()
+        self.hold_status = generic_model.Symbol.LookupParameter("_property_hold_status").AsString()
+        self.hold_amount = generic_model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
         self.position_id = generic_model.Symbol.LookupParameter("_property_positionID").AsInteger()
-        #self.luck = generic_model.Symbol.LookupParameter("_property_luck").AsInteger()
-        #self.money = generic_model.Symbol.LookupParameter("_asset_money").AsInteger()
+        self.luck = generic_model.Symbol.LookupParameter("_property_luck").AsInteger()
+        self.money = generic_model.Symbol.LookupParameter("_asset_money").AsInteger()
+        self.is_overweight = generic_model.Symbol.LookupParameter("_property_is_overweight").AsInteger()
         self.direction = generic_model.Symbol.LookupParameter("_asset_direction").AsInteger()
 
-    def update_position_id(self, id):
+    def DO_NOT_USE_update_position_id(self, id):
         self.model.Symbol.LookupParameter("_property_positionID").Set(id)
 
     def update_money(self, amount):
         current_money = self.model.Symbol.LookupParameter("_asset_money").AsInteger()
         self.model.Symbol.LookupParameter("_asset_money").Set(current_money + int(amount))
 
-    def update_hold(self, amount):
+    def update_luck(self, amount):
+        self.model.Symbol.LookupParameter("_property_luck").Set(self.luck + int(amount))
+
+    def update_weight(self, data):
+        self.model.Symbol.LookupParameter("_property_is_overweight").Set(int(data))
+
+    def update_hold(self):
         current_hold_location = self.model.Symbol.LookupParameter("_property_hold_status").AsString()
         current_hold_amount = self.model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
-        if current_hold_location:
-            forms.alert("Currently staying in {}".format(current_hold_location))
-        #self.model.Symbol.LookupParameter("_asset_money").Set(current_money + int(amount))
+        if current_hold_location == None:
+            current_hold_location = " holder place"
+
+        print "&&&&", current_hold_amount
+        if current_hold_amount > 0:
+            forms.alert("Currently staying in {}\n{} round remains.".format(current_hold_location, current_hold_amount))
+            self.model.Symbol.LookupParameter("_property_hold_amount").Set(current_hold_amount - 1)
+            if current_hold_location == "Hospital":
+                forms.alert("Hospital Bill: $500")
+                self.update_money(-500)
+
+        else:
+            forms.alert("You are free from {}".format(current_hold_location))
+            if self.is_overweight:
+                self.model.Symbol.LookupParameter("_property_is_overweight").Set(0)
+                self.is_overweight = False
+                forms.alert("Doctor cured your overweight")
+            self.model.Symbol.LookupParameter("_property_hold_status").Set("")
+            self.model.Symbol.LookupParameter("_property_hold_amount").Set(0)
+            current_marker = get_marker_by_id(self.position_id)
+            description = get_marker_description(current_marker)
+            data = get_marker_data(current_marker)
+            if "*exit*" in description:
+
+                self.hold_amount = 0
+                #update_position_id(data)
+                #self.position_id = int(data)
+                move_player(self, data)
+
+    def update_pit(self):
+        depth = self.model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
+        raw_dice = dice(self.luck)
+        if raw_dice >= depth:
+            self.hold_amount = 0
+            self.model.Symbol.LookupParameter("_property_hold_status").Set("")
+            self.model.Symbol.LookupParameter("_property_hold_amount").Set(0)
+            forms.alert("it is your lucky day.\nYou only need {} to get out.".format(depth))
+            #roll_dice(self)
+        elif raw_dice < 0 and self.is_overweight:
+            depth += 1
+            forms.alert("you are too heavy, floor collaspe while jumping. \nThe pit is now {}m deep.".format(depth))
+            self.model.Symbol.LookupParameter("_property_hold_amount").Set(depth)
+            pit_marker = get_marker_by_id(self.position_id)
+            pit_marker.LookupParameter("_marker_event_data").Set(str(depth))
+            pit = get_pit()
+            pit.LookupParameter("depth").Set(int(depth))
+        else:
+            forms.alert("you need {} or more, maybe next day.".format(depth))
+
+        self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(depth * 1000))
+
+
+    def flip_direction(self):
+        current_direction = self.model.Symbol.LookupParameter("_asset_direction").AsInteger()
+        self.model.Symbol.LookupParameter("_asset_direction").Set(current_direction * -1)
+
+    def send_to_prison(self, hold_amount):
+
+        move_player(self, -200)#100 is the id for hospital
+        self.model.Symbol.LookupParameter("_property_hold_status").Set("Prison")
+        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
 
     def send_to_hospital(self, hold_amount):
 
-        move_player(agent.model, 100)#100 is the id for hospital
+        move_player(self, -100)#100 is the id for hospital
+        forms.alert("Hospital Bill: $500")
+        self.update_money(-500)
         self.model.Symbol.LookupParameter("_property_hold_status").Set("Hospital")
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
 
@@ -179,15 +264,23 @@ class player_agent:
         self.model.Symbol.LookupParameter("_property_hold_status").Set("In Place")
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
 
+    def hold_in_pit(self, depth):
+        self.model.Symbol.LookupParameter("_property_hold_status").Set("Pit")
+        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(depth))
+        forms.alert("The pit is {}m deep, you will need to roll {} or more to get out.".format(depth))
+        self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(depth * 1000))
+
     def process_event(self, title, description, data):
 
         if title != "none":
             forms.alert("{}".format(title))
 
-
         if "*hospital*" in description:
             hold_amount = data
             agent.send_to_hospital(hold_amount)
+        if "*prison*" in description:
+            hold_amount = data
+            agent.send_to_prison(hold_amount)
         if "*hold in place*" in description:
             hold_amount = data
             agent.hold_in_place(hold_amount)
@@ -195,30 +288,81 @@ class player_agent:
             agent.update_money(data)
         if "*walk*" in description:
             new_position_id = agent.position_id + agent.direction * int(data)
-            move_player(agent.model, new_position_id)
-            agent.position_id = new_position_id
+            move_player(agent, new_position_id)
+            #agent.position_id = new_position_id
+        if "*flip direction*" in description:
+            agent.flip_direction()
         if "*pit*" in description:
-            agent.stuck_in_pit(data)
+            agent.hold_in_pit(data)
+        if "*transfer*" in description:
+            forms.alert("Intersection Point, switch road.")
+            move_player(agent, data)
+        if "*luck*" in description:
+            agent.update_luck(data)
 
+        if "*overweight*" in description:
+            agent.update_weight(data)
         pass
+
+
+
+
+def roll_dice(agent):
+    raw_dice = dice(agent.luck)#this can be the dice
+    if raw_dice < 0:
+        dice_direction = -1
+    else:
+        dice_direction = 1
+    total_step = abs(raw_dice)
+
+    for step in range(total_step):
+        if agent.is_overweight and step == 4:
+            forms.alert("Overweight, too tied")
+            agent.hold_in_place(1)
+            break
+
+
+        try:
+            new_position_id = agent.position_id + agent.direction * dice_direction
+            move_player(agent, new_position_id)
+
+        except:#reach max position, return to zero
+            new_position_id = 0 if dice_direction == 1 else _MaxMarkerID
+            move_player(agent, new_position_id)
+
+
+        current_marker = get_marker_by_id(new_position_id)
+        marker_title = get_marker_title(current_marker)
+        marker_description = get_marker_description(current_marker)
+        marker_data = get_marker_data(current_marker)
+        #print marker_description, marker_data
+        if "*payday*" in marker_description:
+
+            agent.update_money(marker_data)
+            forms.alert("Passing Payday.\nGetting ${}.".format(marker_data))
+    #print "current_position_id = {}".format(new_position_id)
+    #agent.update_position_id(new_position_id)
+    if "*random event*" in marker_description:
+        event_card = get_random_event_card(agent.luck)
+
+        card_title = get_marker_title(event_card)
+        card_description = get_marker_description(event_card)
+        card_data = get_marker_data(event_card)
+
+        agent.process_event(card_title, card_description, card_data)
+    else:
+        agent.process_event(marker_title, marker_description, marker_data)
 
 
 
 ################## main code below #####################
 _PlayerNameKeyword = "$Player_"
-_MaxMarkerID = 31
+_MaxMarkerID = find_max_marker_id_on_map()
 _SpeedFactor = 0.02#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
-
-
-#user_name_para_guid = #"_property_name"
-
-
-
 
 players = get_players()
 player = pick_player(players)
 player_name = get_player_name(player)
-
 
 #current_view = revit.doc.ActiveView
 #CAMERA.switch_view_to("$Camera_Main", revit.doc)
@@ -235,47 +379,28 @@ with revit.Transaction("redraw views"):
 
 with revit.Transaction("Make Move for '{}'".format(player_name)):
     agent = player_agent(player)
-    raw_dice = dice()#this can be the dice
-    if raw_dice < 0:
-        dice_direction = -1
-    else:
-        dice_direction = 1
-    total_step = abs(raw_dice)
+    if agent.hold_status != "":
+        if agent.hold_status == "Pit":
+            agent.update_pit()
+        elif agent.hold_status == "Starter":
+            raw_dice = dice(agent.luck)
+            if raw_dice >= 5:
+                move_player(agent, 1)
+                agent.model.Symbol.LookupParameter("_property_hold_status").Set("")
+                agent.model.Symbol.LookupParameter("_property_hold_amount").Set(0)
+                agent.hold_amount = 0
+                agent.hold_status = ""
+                #agent.position_id = 1
+            else:
+                forms.alert("You need 5 or more to move on.")
+        else:
+            print "update hold"
+            agent.update_hold()
 
-    for step in range(total_step):
-        try:
-            new_position_id = agent.position_id + agent.direction * dice_direction
-            move_player(agent.model, new_position_id)
-            agent.position_id = new_position_id
-        except:#reach max position, return to zero
-            new_position_id = 0 if dice_direction == 1 else _MaxMarkerID
-            move_player(agent.model, new_position_id)
-            agent.position_id = new_position_id
+    #after those update above, you want to recheck the hold amount and move dice
+    if agent.hold_amount == 0:
+        roll_dice(agent)
 
-        current_marker = get_marker_by_id(new_position_id)
-        marker_title = get_marker_title(current_marker)
-        marker_description = get_marker_description(current_marker)
-        marker_data = get_marker_data(current_marker)
-        #print marker_description, marker_data
-        if "*payday*" in marker_description:
-
-            agent.update_money(marker_data)
-            forms.alert("Passing Payday.\nGetting ${}.".format(marker_data))
-
-
-
-    #print "current_position_id = {}".format(new_position_id)
-    agent.update_position_id(new_position_id)
-    if "*random event*" in marker_description:
-        event_card = get_random_event_card()
-
-        card_title = get_marker_title(event_card)
-        card_description = get_marker_description(event_card)
-        card_data = get_marker_data(event_card)
-
-        agent.process_event(card_title, card_description, card_data)
-    else:
-        agent.process_event(marker_title, marker_description, marker_data)
 
 #CAMERA.switch_view_to("BATTLE GROUND", revit.doc)
 output = script.get_output()

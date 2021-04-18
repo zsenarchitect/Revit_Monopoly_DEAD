@@ -1,8 +1,0 @@
-<Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Background="#FF767676">
-    <StackPanel Margin="20">
-        <TextBlock Text="Richman.BETA" Foreground="#FFE6E6E6" />
-        <Button Content="Roll Dice!" Click="roll_dice" HorizontalAlignment="Stretch" VerticalAlignment="Center" Height="20" Margin="0,10,0,0" Foreground="#FFA0A0A0" Background="#FF5B5B5B" BorderBrush="#FF89BBD8"/>
-    </StackPanel>
-</Page>
