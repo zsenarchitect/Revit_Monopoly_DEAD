@@ -3,7 +3,7 @@ __title__ = "Reset"
 
 from pyrevit import forms, DB, revit, script
 from time import sleep
-
+import random
 
 from System.Collections.Generic import List
 
@@ -57,11 +57,40 @@ def move_player(player, target_marker_id):
         sleep(pause_time * 0.05)
     player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
 
+
+def spot_taken(my_player):
+    all_players = get_players()
+    for player in all_players:
+        if player.Symbol.LookupParameter("_property_name").AsString() == my_player.Symbol.LookupParameter("_property_name").AsString():
+            #print "it is me"
+            continue
+        #print player.Location.Point,my_player.Location.Point
+        if player.Location.Point.DistanceTo(my_player.Location.Point) < 2:
+            #print "same spot"
+            return True
+    return False
+
+def shift_player(player):
+    center = get_marker_by_id(-50).Location.Point
+    angle = random.randrange(0,360)
+    import math
+    x = 3 * math.cos(angle)
+    y = 3 * math.sin(angle)
+    player.Location.Point = center + DB.XYZ(x, y, 0)
+
+
 def reset_player(player):
+
     try:
-        move_player(player, -50)
-    except:
+        move_player(player, -50)#-50 is starter mark
+    except:#alrady in spot
         pass
+    i = 0
+    while spot_taken(player) or i > 100:
+        #print "shifting"
+        shift_player(player)
+        i += 1
+
 
     player.Symbol.LookupParameter("_property_hold_status").Set("Starter")
     player.Symbol.LookupParameter("_property_hold_amount").Set(1)
@@ -71,14 +100,30 @@ def reset_player(player):
     player.Symbol.LookupParameter("_property_is_overweight").Set(0)
     player.Symbol.LookupParameter("_asset_direction").Set(1)
 
-
+def reset_marker(marker):
+    marker.LookupParameter("_property_team").Set("")
+    marker.LookupParameter("show_color plate").Set(0)
 ################## main code below #####################
 _PlayerNameKeyword = "$Player_"
 
 
 players = get_players()
-with revit.Transaction("reset players"):
+markers = []
+i = 0
+while i < 200:
+    try:
+        markers.append(get_marker_by_id(i))
+    except:
+        break
+    i += 1
+with revit.Transaction("reset maps"):
     for player in players:
         reset_player(player)
+        revit.uidoc.RefreshActiveView()
 
+    for marker in markers:
+        try:
+            reset_marker(marker)
+        except:
+            pass
     forms.alert("All Players have been reset")

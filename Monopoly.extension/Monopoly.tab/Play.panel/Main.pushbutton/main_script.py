@@ -124,13 +124,15 @@ def move_player(agent, target_marker_id):
         player.Location.Point = temp_location
         #perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
         #CAMERA.update_camera(perspective_view, temp_location)
-        revit.doc.Regenerate()
-        revit.uidoc.RefreshActiveView()
-        #revit.uidoc.UpdateAllOpenViews()
+
         safety = 0.01#so there is never division by zero
         speed = -pt_para * (pt_para - 1) + safety#faster in middle
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
         sleep(pause_time * _SpeedFactor)
+        revit.doc.Regenerate()
+        revit.uidoc.RefreshActiveView()
+        #revit.uidoc.UpdateAllOpenViews()
+
     player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
     agent.position_id = target_marker_id
 
@@ -162,10 +164,15 @@ def get_marker_data(marker):
 def get_marker_title(marker):
     return marker.LookupParameter("_marker_event_title").AsString()
 
+def get_marker_team(marker):
+    return marker.LookupParameter("_property_team").AsString()
+
+
 class player_agent:
     def __init__(self, generic_model):
         self.model = generic_model
         self.name = generic_model.Symbol.LookupParameter("_property_name").AsString()
+        self.team = generic_model.Symbol.LookupParameter("_property_team").AsString()
         self.hold_status = generic_model.Symbol.LookupParameter("_property_hold_status").AsString()
         self.hold_amount = generic_model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
         self.position_id = generic_model.Symbol.LookupParameter("_property_positionID").AsInteger()
@@ -193,9 +200,14 @@ class player_agent:
         if current_hold_location == None:
             current_hold_location = " holder place"
 
-        print "&&&&", current_hold_amount
+        #print "&&&&", current_hold_amount
         if current_hold_amount > 0:
-            forms.alert("Currently staying in {}\n{} round remains.".format(current_hold_location, current_hold_amount))
+            if current_hold_amount - 1 == 0:
+                additiontal_note = "You will free at next round."
+            else:
+                additiontal_note = ""
+
+            forms.alert("Currently staying in {}\n{} round remains.\n{}".format(current_hold_location, current_hold_amount - 1, additiontal_note))
             self.model.Symbol.LookupParameter("_property_hold_amount").Set(current_hold_amount - 1)
             if current_hold_location == "Hospital":
                 forms.alert("Hospital Bill: $500")
@@ -227,6 +239,7 @@ class player_agent:
             self.model.Symbol.LookupParameter("_property_hold_status").Set("")
             self.model.Symbol.LookupParameter("_property_hold_amount").Set(0)
             forms.alert("it is your lucky day.\nYou only need {} to get out.".format(depth))
+
             #roll_dice(self)
         elif raw_dice < 0 and self.is_overweight:
             depth += 1
@@ -265,6 +278,7 @@ class player_agent:
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
 
     def hold_in_pit(self, depth):
+        print depth
         self.model.Symbol.LookupParameter("_property_hold_status").Set("Pit")
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(depth))
         forms.alert("The pit is {}m deep, you will need to roll {} or more to get out.".format(depth))
@@ -294,6 +308,7 @@ class player_agent:
             agent.flip_direction()
         if "*pit*" in description:
             agent.hold_in_pit(data)
+
         if "*transfer*" in description:
             forms.alert("Intersection Point, switch road.")
             move_player(agent, data)
@@ -302,9 +317,15 @@ class player_agent:
 
         if "*overweight*" in description:
             agent.update_weight(data)
-        pass
 
+        if "*exchange team*" in description:
+            agent.exchange_team(data)
 
+        if "*exchange money*" in description:
+            agent.exchange_money(data)
+
+        if "*exchange position*" in description:
+            agent.exchange_position(data)
 
 
 def roll_dice(agent):
@@ -327,7 +348,11 @@ def roll_dice(agent):
             move_player(agent, new_position_id)
 
         except:#reach max position, return to zero
-            new_position_id = 0 if dice_direction == 1 else _MaxMarkerID
+            if agent.direction * dice_direction  == 1:
+                new_position_id = 0
+            else:
+                new_position_id = _MaxMarkerID
+            #print new_position_id
             move_player(agent, new_position_id)
 
 
@@ -354,10 +379,40 @@ def roll_dice(agent):
         agent.process_event(marker_title, marker_description, marker_data)
 
 
+    if get_marker_title(current_marker) == "none":
+        if get_marker_team(current_marker) == "":
+            purchase_new_land(current_marker, agent)
+        else:
+            pay_land(current_marker, agent)
+
+def pay_land(marker, agent):
+    price = int(marker.LookupParameter("_marker_event_data").AsString())
+    agent.update_money(-price)
+    forms.alert("Paying {} team ${}".format(team, price))
+    team_share_money(team)#make them evenly share the amount pay
+
+    """
+    decision = forms.alert(msg = "Do you want to buy it over to your team?", options = ["Yes, pay ${}".format(price * 1.5),\
+                                                                                    "No."])
+    """
+
+def purchase_new_land(marker, agent):
+    decision = forms.alert(msg = "Land available, do you want to buy it?", options = ["Yes, pay $1000",\
+                                                                                        "No."])
+    if decision == None or "No" in decision:
+        return
+    agent.update_money(-1000)
+
+    marker.LookupParameter("_property_team").Set(agent.team)
+    marker.LookupParameter("color plate mat.").Set(get_material_by_name(agent.team).Id)
+    marker.LookupParameter("show_color plate").Set(1)
+    marker.LookupParameter("_marker_event_data").Set(str(1000))
+
 
 ################## main code below #####################
 _PlayerNameKeyword = "$Player_"
 _MaxMarkerID = find_max_marker_id_on_map()
+#print _MaxMarkerID
 _SpeedFactor = 0.02#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
 
 players = get_players()
@@ -394,7 +449,7 @@ with revit.Transaction("Make Move for '{}'".format(player_name)):
             else:
                 forms.alert("You need 5 or more to move on.")
         else:
-            print "update hold"
+            #print "update hold"
             agent.update_hold()
 
     #after those update above, you want to recheck the hold amount and move dice
