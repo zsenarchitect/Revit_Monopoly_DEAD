@@ -96,7 +96,7 @@ def reset_player(player):
     player.Symbol.LookupParameter("_property_hold_amount").Set(1)
     player.Symbol.LookupParameter("_property_positionID").Set(-50)
     player.Symbol.LookupParameter("_property_luck").Set(50)
-    player.Symbol.LookupParameter("_asset_money").Set(1000)
+    player.Symbol.LookupParameter("_asset_money").Set(5000)
     player.Symbol.LookupParameter("_property_is_overweight").Set(0)
     player.Symbol.LookupParameter("_asset_direction").Set(1)
 
