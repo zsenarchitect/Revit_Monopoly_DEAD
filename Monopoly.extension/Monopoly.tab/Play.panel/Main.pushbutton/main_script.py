@@ -4,7 +4,8 @@ __title__ = "Move"
 from pyrevit import forms, DB, revit, script
 from time import sleep
 import random
-import CAMERA
+#import CAMERA
+import CLOUD
 from System.Collections.Generic import List
 #!/usr/bin/env python
 # coding=utf-8
@@ -118,6 +119,14 @@ def move_player(agent, target_marker_id):
     #spline = DB.NurbSpline.Create()
     #DB.CurveElement.SetGeometryCurve(arc, False)
 
+
+
+    wind = DB.XYZ(random.uniform(-0.1,0.1),random.uniform(-0.1,0.1),0)
+
+    #print wind
+
+
+
     step = 15
     for i in range(step + 1):
         pt_para = float(i)/step
@@ -125,13 +134,19 @@ def move_player(agent, target_marker_id):
         #print temp_location.Z
         #temp_location = line.Evaluate(pt_para, True)
         player.Location.Point = temp_location
+
+
+        CLOUD.change_sky(wind)
+
+
         #perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
         #CAMERA.update_camera(perspective_view, temp_location)
 
         safety = 0.01#so there is never division by zero
         speed = -pt_para * (pt_para - 1) + safety#faster in middle
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
-        sleep(pause_time * _SpeedFactor)
+
+        #sleep(pause_time * _SpeedFactor)
         revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
         #revit.uidoc.UpdateAllOpenViews()
@@ -284,7 +299,7 @@ class player_agent:
         print depth
         self.model.Symbol.LookupParameter("_property_hold_status").Set("Pit")
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(depth))
-        forms.alert("The pit is {}m deep, you will need to roll {} or more to get out.".format(depth))
+        forms.alert("The pit is {0}m deep, you will need to roll {0} or more to get out.".format(depth))
         self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(depth * 1000))
 
     def process_event(self, title, description, data):
