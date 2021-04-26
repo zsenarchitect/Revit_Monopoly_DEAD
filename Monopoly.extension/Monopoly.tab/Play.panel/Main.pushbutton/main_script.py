@@ -10,16 +10,14 @@ import MONEY_GATE
 from System.Collections.Generic import List
 #!/usr/bin/env python
 # coding=utf-8
-def feet_to_mm(dist):
-    return (dist/3.28084)*1000
 
 def mm_to_feet(dist):
-    return (dist /1000) * 3.28084
+    return (int(dist) /1000) * 3.28084
 
 def dice(luck):
     luck = int(luck)
     sample_raw = [-2, -1, 1, 2, 3, 4, 5, 6, 10]#9 item
-    #sample_raw = [4]######use me to foce a dice
+    sample_raw = [8]######use me to foce a dice
     sample = []
     for item in sample_raw:
         if item < 0 and luck < 30:
@@ -298,7 +296,7 @@ class player_agent:
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
 
     def hold_in_pit(self, depth):
-        print depth
+        #print depth
         self.model.Symbol.LookupParameter("_property_hold_status").Set("Pit")
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(depth))
         forms.alert("The pit is {0}m deep, you will need to roll {0} or more to get out.".format(depth))
@@ -359,6 +357,8 @@ class player_agent:
             forms.alert("Exchanging with {}".format(other.name))
 
         my_id, other_id = other.position_id, self.position_id
+        move_player(self, other_id)
+        move_player(other, my_id)
         try:
             move_player(self, other_id)
             move_player(other, my_id)
@@ -378,6 +378,10 @@ class player_agent:
         my_money, other_money = other.money, self.money
         self.model.Symbol.LookupParameter("_asset_money").Set( other_money)
         other.model.Symbol.LookupParameter("_asset_money").Set( my_money  )
+        forms.alert("{0} gives {2} to {1}\n{1} gives {3} to {0}".format(self.name, \
+                                                                        other.name, \
+                                                                        self.money, \
+                                                                        other.money))
 
     def exchange_team(self, data):
         other = get_player_by_richness(data)
@@ -394,7 +398,10 @@ class player_agent:
         other.model.Symbol.LookupParameter("_property_team").Set( my_team )
         self.model.Symbol.LookupParameter("mat.").Set( get_material_by_name(other_team).Id )
         other.model.Symbol.LookupParameter("mat.").Set( get_material_by_name(my_team).Id )
-
+        forms.alert("{0} is now {2}\n{1} is no {}".format(self.name, \
+                                                        other.name, \
+                                                        self.team, \
+                                                        other.team))
 def annouce_name_by_richness(data):
     if data == "rich":
         return "Wow! you are the richest"
@@ -419,7 +426,7 @@ def roll_dice(agent):
 
     for step in range(total_step):
         if agent.is_overweight and step == 4:
-            forms.alert("Overweight, too tied")
+            forms.alert("Overweight, too tied, stay here.")
             agent.hold_in_place(1)
             break
 
@@ -573,7 +580,7 @@ _MaxMarkerID = find_max_marker_id_on_map()
 _SpeedFactor = 0.005#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
 
 output = script.get_output()
-killtime = 100
+killtime = 1000
 output.self_destruct(killtime)
 
 players = get_players()
