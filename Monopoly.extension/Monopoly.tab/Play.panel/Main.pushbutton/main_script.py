@@ -6,6 +6,7 @@ from time import sleep
 import random
 #import CAMERA
 import CLOUD
+import MONEY_GATE
 from System.Collections.Generic import List
 #!/usr/bin/env python
 # coding=utf-8
@@ -121,8 +122,8 @@ def move_player(agent, target_marker_id):
 
 
 
-    wind = DB.XYZ(random.uniform(-0.1,0.1),random.uniform(-0.1,0.1),0)
-
+    wind = DB.XYZ(random.uniform(-0.1,0.2),random.uniform(-0.1,0.2),0)
+    #print wind
     #print wind
 
 
@@ -137,6 +138,7 @@ def move_player(agent, target_marker_id):
 
 
         CLOUD.change_sky(wind)
+        MONEY_GATE.spin_gate()
 
 
         #perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
@@ -147,7 +149,7 @@ def move_player(agent, target_marker_id):
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
 
         #sleep(pause_time * _SpeedFactor)
-        revit.doc.Regenerate()
+        #revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
         #revit.uidoc.UpdateAllOpenViews()
 
