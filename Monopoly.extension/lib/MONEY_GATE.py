@@ -7,6 +7,7 @@ def get_gate():
     return filter(lambda x: x.Symbol.Family.Name == "MONEY_GATE", generic_models)[0]
 
 def spin_gate():
+
     gate = get_gate()
     para = gate.LookupParameter("angle")
     angle = ( (para.AsDouble() / math.pi) * 180 + 1) % 360

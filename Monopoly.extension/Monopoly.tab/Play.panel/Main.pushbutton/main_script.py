@@ -110,10 +110,17 @@ def move_player(agent, target_marker_id):
     target_marker_id = int(target_marker_id)
     initial_pt = player.Location.Point
     final_pt = get_marker_by_id(target_marker_id).Location.Point
-    line = DB.Line.CreateBound(initial_pt, final_pt)
-    mid_pt = line.Evaluate(0.5, True)
-    mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/2.0)
-    arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
+    with revit.Transaction("temp"):
+        try:
+            line = DB.Line.CreateBound(initial_pt, final_pt)
+            mid_pt = line.Evaluate(0.5, True)
+            mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/2.0)
+            arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
+        except:#line too short, just update data and leave
+            player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
+            agent.position_id = target_marker_id
+            return
+
     #pt_list = List[DB.XYZ]([])
     #spline = DB.NurbSpline.Create()
     #DB.CurveElement.SetGeometryCurve(arc, False)
@@ -132,11 +139,12 @@ def move_player(agent, target_marker_id):
         temp_location = arc.Evaluate(pt_para, True)
         #print temp_location.Z
         #temp_location = line.Evaluate(pt_para, True)
-        player.Location.Point = temp_location
 
 
-        CLOUD.change_sky(wind)
-        MONEY_GATE.spin_gate()
+        with revit.Transaction("frame update"):
+            player.Location.Point = temp_location
+            CLOUD.change_sky(wind)
+            MONEY_GATE.spin_gate()
 
 
         #perspective_view = CAMERA.get_view_by_name("$Camera_Main", revit.doc)
@@ -150,9 +158,9 @@ def move_player(agent, target_marker_id):
         #revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
         #revit.uidoc.UpdateAllOpenViews()
-
-    player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
-    agent.position_id = target_marker_id
+    with revit.Transaction("temp"):
+        player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
+        agent.position_id = target_marker_id
 
 def get_player_name(player):
     family_name = player.Symbol.Family.Name
@@ -300,7 +308,7 @@ class player_agent:
         self.model.Symbol.LookupParameter("_property_hold_status").Set("Pit")
         self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(depth))
         forms.alert("The pit is {0}m deep, you will need to roll {0} or more to get out.".format(depth))
-        self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(depth * 1000))
+        self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(int(depth) * 1000))
 
     def process_event(self, title, description, data):
 
@@ -398,10 +406,11 @@ class player_agent:
         other.model.Symbol.LookupParameter("_property_team").Set( my_team )
         self.model.Symbol.LookupParameter("mat.").Set( get_material_by_name(other_team).Id )
         other.model.Symbol.LookupParameter("mat.").Set( get_material_by_name(my_team).Id )
-        forms.alert("{0} is now {2}\n{1} is no {}".format(self.name, \
+        forms.alert("{0} is now {2}\n{1} is now {3}".format(self.name, \
                                                         other.name, \
-                                                        self.team, \
-                                                        other.team))
+                                                        other_team, \
+                                                        my_team)\
+                                                        )
 def annouce_name_by_richness(data):
     if data == "rich":
         return "Wow! you are the richest"
@@ -544,8 +553,9 @@ def play_this_player(player):
         sleep(1)
     """
 
-    with revit.Transaction("Make Move for '{}'".format(player_name)):
+    with revit.TransactionGroup("Make Move for '{}'".format(player_name)):
         agent = player_agent(player)
+
         if agent.hold_status != "":
             if agent.hold_status == "Pit":
                 agent.update_pit()
