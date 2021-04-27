@@ -17,7 +17,7 @@ def mm_to_feet(dist):
 def dice(luck):
     luck = int(luck)
     sample_raw = [-2, -1, 1, 2, 3, 4, 5, 6, 10]#9 item
-    sample_raw = [8]######use me to foce a dice
+    #sample_raw = [8]######use me to foce a dice
     sample = []
     for item in sample_raw:
         if item < 0 and luck < 30:
@@ -110,16 +110,15 @@ def move_player(agent, target_marker_id):
     target_marker_id = int(target_marker_id)
     initial_pt = player.Location.Point
     final_pt = get_marker_by_id(target_marker_id).Location.Point
-    with revit.Transaction("temp"):
-        try:
-            line = DB.Line.CreateBound(initial_pt, final_pt)
-            mid_pt = line.Evaluate(0.5, True)
-            mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/2.0)
-            arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
-        except:#line too short, just update data and leave
-            player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
-            agent.position_id = target_marker_id
-            return
+
+    try:
+        line = DB.Line.CreateBound(initial_pt, final_pt)
+        mid_pt = line.Evaluate(0.5, True)
+        mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/2.0)
+        arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
+    except:#line too short, just update data and leave
+        agent.set_position_id(target_marker_id)
+        return
 
     #pt_list = List[DB.XYZ]([])
     #spline = DB.NurbSpline.Create()
@@ -158,9 +157,8 @@ def move_player(agent, target_marker_id):
         #revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
         #revit.uidoc.UpdateAllOpenViews()
-    with revit.Transaction("temp"):
-        player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
-        agent.position_id = target_marker_id
+    agent.set_position_id(target_marker_id)
+
 
 def get_player_name(player):
     family_name = player.Symbol.Family.Name
@@ -197,6 +195,7 @@ def get_marker_team(marker):
 class player_agent:
     def __init__(self, generic_model):
         self.model = generic_model
+        """
         self.name = generic_model.Symbol.LookupParameter("_property_name").AsString()
         self.team = generic_model.Symbol.LookupParameter("_property_team").AsString()
         self.hold_status = generic_model.Symbol.LookupParameter("_property_hold_status").AsString()
@@ -206,23 +205,90 @@ class player_agent:
         self.money = generic_model.Symbol.LookupParameter("_asset_money").AsInteger()
         self.is_overweight = generic_model.Symbol.LookupParameter("_property_is_overweight").AsInteger()
         self.direction = generic_model.Symbol.LookupParameter("_asset_direction").AsInteger()
+        """
+
+    def get_name(self):
+        return self.model.Symbol.LookupParameter("_property_name").AsString()
+
+    def get_team(self):
+        return self.model.Symbol.LookupParameter("_property_team").AsString()
+    def set_team(self, team):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_property_team").Set(team)
+            self.model.Symbol.LookupParameter("mat.").Set( get_material_by_name(team).Id )
+
+    def get_hold_status(self):
+        return self.model.Symbol.LookupParameter("_property_hold_status").AsString()
+    def set_hold_status(self, hold_status):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_property_hold_status").Set(hold_status)
+
+    def get_hold_amount(self):
+        return self.model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
+    def set_hold_amount(self, amount):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(amount))
+
+    def get_position_id(self):
+        return self.model.Symbol.LookupParameter("_property_positionID").AsInteger()
+    def set_position_id(self, position_id):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_property_positionID").Set(int(position_id))
+
+    def get_direction(self):
+        return self.model.Symbol.LookupParameter("_asset_direction").AsInteger()
+    def set_direction(self, direction):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_asset_direction").Set(int(direction))
+
+    def get_luck(self):
+        return self.model.Symbol.LookupParameter("_property_luck").AsInteger()
+    def set_luck(self, luck):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_property_luck").Set(int(luck))
+
+    def get_money(self):
+        return self.model.Symbol.LookupParameter("_asset_money").AsInteger()
+    def set_money(self, money):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_asset_money").Set(int(money))
+
+    def get_is_overweight(self):
+        if 1 == self.model.Symbol.LookupParameter("_property_is_overweight").AsInteger():
+            return True
+        return False
+    def set_is_overweight(self, boolean):
+        with revit.Transaction("Local Transaction"):
+            if boolean:
+                self.model.Symbol.LookupParameter("_property_is_overweight").Set(1)
+                return
+            self.model.Symbol.LookupParameter("_property_is_overweight").Set(0)
+
+    def set_elevation(self, depth):
+        with revit.Transaction("Local Transaction"):
+            self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(depth * 1000))
+
+
+
+
+
+
 
     def DO_NOT_USE_update_position_id(self, id):
         self.model.Symbol.LookupParameter("_property_positionID").Set(id)
 
     def update_money(self, amount):
-        current_money = self.model.Symbol.LookupParameter("_asset_money").AsInteger()
-        self.model.Symbol.LookupParameter("_asset_money").Set(current_money + int(amount))
+        self.set_money(self.get_money() + int(amount))
 
     def update_luck(self, amount):
-        self.model.Symbol.LookupParameter("_property_luck").Set(self.luck + int(amount))
+        self.set_luck(self.get_luck() + int(amount))
 
-    def update_weight(self, data):
+    def DO_NOT_USE_update_weight(self, data):
         self.model.Symbol.LookupParameter("_property_is_overweight").Set(int(data))
 
     def update_hold(self):
-        current_hold_location = self.model.Symbol.LookupParameter("_property_hold_status").AsString()
-        current_hold_amount = self.model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
+        current_hold_location = self.get_hold_status()
+        current_hold_amount = self.get_hold_amount()
         if current_hold_location == None:
             current_hold_location = " holder place"
 
@@ -234,81 +300,77 @@ class player_agent:
                 additiontal_note = ""
 
             forms.alert("Currently staying in {}\n{} round remains.\n{}".format(current_hold_location, current_hold_amount - 1, additiontal_note))
-            self.model.Symbol.LookupParameter("_property_hold_amount").Set(current_hold_amount - 1)
+            self.set_hold_amount(current_hold_amount - 1)
             if current_hold_location == "Hospital":
                 forms.alert("Hospital Bill: $500")
                 self.update_money(-500)
 
         else:
             forms.alert("You are free from {}".format(current_hold_location))
-            if self.is_overweight:
-                self.model.Symbol.LookupParameter("_property_is_overweight").Set(0)
-                self.is_overweight = False
+            if self.get_is_overweight() and current_hold_location == "Hospital":
+                self.set_is_overweight(False)
                 forms.alert("Doctor cured your overweight")
-            self.model.Symbol.LookupParameter("_property_hold_status").Set("")
-            self.model.Symbol.LookupParameter("_property_hold_amount").Set(0)
-            current_marker = get_marker_by_id(self.position_id)
+
+            self.set_hold_status("")
+            self.set_hold_amount(0)
+            current_marker = get_marker_by_id(self.get_position_id())
             description = get_marker_description(current_marker)
             data = get_marker_data(current_marker)
             if "*exit*" in description:
-
-                self.hold_amount = 0
-                #update_position_id(data)
-                #self.position_id = int(data)
-                move_player(self, data)
+                move_player(self, data)# move player to marker of data id
 
     def update_pit(self):
-        depth = self.model.Symbol.LookupParameter("_property_hold_amount").AsInteger()
-        raw_dice = dice(self.luck)
+        depth = self.get_hold_amount()
+        raw_dice = dice(self.get_luck())
         if raw_dice >= depth:
-            self.hold_amount = 0
-            self.model.Symbol.LookupParameter("_property_hold_status").Set("")
-            self.model.Symbol.LookupParameter("_property_hold_amount").Set(0)
+            self.set_hold_amount(0)
+            self.set_hold_status("")
             forms.alert("it is your lucky day.\nYou only need {} to get out.".format(depth))
+            return
 
-            #roll_dice(self)
-        elif raw_dice < 0 and self.is_overweight:
+        elif raw_dice < 0 and self.get_is_overweight():
             depth += 1
             forms.alert("you are too heavy, floor collaspe while jumping. \nThe pit is now {}m deep.".format(depth))
-            self.model.Symbol.LookupParameter("_property_hold_amount").Set(depth)
-            pit_marker = get_marker_by_id(self.position_id)
+            self.set_hold_amount(depth)
+            pit_marker = get_marker_by_id(self.get_position_id())
             pit_marker.LookupParameter("_marker_event_data").Set(str(depth))
             pit = get_pit()
             pit.LookupParameter("depth").Set(int(depth))
+            self.set_elevation(depth)
         else:
             forms.alert("you need {} or more, maybe next day.".format(depth))
 
-        self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(depth * 1000))
+
 
 
     def flip_direction(self):
-        current_direction = self.model.Symbol.LookupParameter("_asset_direction").AsInteger()
-        self.model.Symbol.LookupParameter("_asset_direction").Set(current_direction * -1)
+        self.set_direction(-self.get_direction())
 
     def send_to_prison(self, hold_amount):
 
-        move_player(self, -200)#100 is the id for hospital
-        self.model.Symbol.LookupParameter("_property_hold_status").Set("Prison")
-        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
+        move_player(self, _MarkerID_prision)#200 is the id for prision
+        self.set_hold_amount(hold_amount)
+        self.set_hold_status("Prision")
 
     def send_to_hospital(self, hold_amount):
 
-        move_player(self, -100)#100 is the id for hospital
+        move_player(self, _MarkerID_prision)#100 is the id for hospital
         forms.alert("Hospital Bill: $500")
         self.update_money(-500)
-        self.model.Symbol.LookupParameter("_property_hold_status").Set("Hospital")
-        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
+        self.set_hold_amount(hold_amount)
+        self.set_hold_status("Hospital")
 
     def hold_in_place(self, hold_amount):
-        self.model.Symbol.LookupParameter("_property_hold_status").Set("In Place")
-        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(hold_amount))
+        self.set_hold_amount(hold_amount)
+        self.set_hold_status("In Place")
 
     def hold_in_pit(self, depth):
         #print depth
-        self.model.Symbol.LookupParameter("_property_hold_status").Set("Pit")
-        self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(depth))
-        forms.alert("The pit is {0}m deep, you will need to roll {0} or more to get out.".format(depth))
-        self.model.LookupParameter("Elevation from Level").Set(-mm_to_feet(int(depth) * 1000))
+        self.set_hold_amount(depth)
+        self.set_hold_status("Pit")
+        forms.alert("The pit is {0}m deep, you will later need to roll {0} or more to get out.".format(depth))
+        self.set_elevation(depth)
+
 
     def process_event(self, title, description, data):
 
@@ -327,9 +389,9 @@ class player_agent:
         if "*money*" in description:
             self.update_money(data)
         if "*walk*" in description:
-            new_position_id = self.position_id + self.direction * int(data)
+            new_position_id = self.get_position_id() + self.get_direction() * int(data)
             move_player(self, new_position_id)
-            #self.position_id = new_position_id
+
         if "*flip direction*" in description:
             self.flip_direction()
         if "*pit*" in description:
@@ -358,56 +420,56 @@ class player_agent:
     def exchange_position(self, data):
         other = get_player_by_richness(data)
 
-        if self.name == other.name:
+        if self.get_name() == other.get_name():
             annouce_name_by_richness(data)
             return
         else:
-            forms.alert("Exchanging with {}".format(other.name))
+            forms.alert("Exchanging with {}".format(other.get_name()))
 
-        my_id, other_id = other.position_id, self.position_id
+        my_id, other_id = other.get_position_id(), self.get_position_id()
         move_player(self, other_id)
         move_player(other, my_id)
         try:
+            pass
+            """
             move_player(self, other_id)
             move_player(other, my_id)
+            """
         except:
-            forms.alert("On same spot.")
+            forms.alert("On same spot. Swicth looks the same.")
 
 
     def exchange_money(self, data):
         other = get_player_by_richness(data)
 
-        if self.name == other.name:
+        if self.get_name() == other.get_name():
             annouce_name_by_richness(data)
             return
         else:
-            forms.alert("Exchanging with {}".format(other.name))
+            forms.alert("Exchanging with {}".format(other.get_name()))
 
-        my_money, other_money = other.money, self.money
-        self.model.Symbol.LookupParameter("_asset_money").Set( other_money)
-        other.model.Symbol.LookupParameter("_asset_money").Set( my_money  )
-        forms.alert("{0} gives {2} to {1}\n{1} gives {3} to {0}".format(self.name, \
-                                                                        other.name, \
-                                                                        self.money, \
-                                                                        other.money))
+        my_money, other_money = other.get_money(), self.get_money()
+        self.set_money(other_money)
+        other.set_money(my_money)
+        forms.alert("{0} gives {2} to {1}\n{1} gives {3} to {0}".format(self.get_name(), \
+                                                                        other.get_name(), \
+                                                                        my_money, \
+                                                                        other_money))
 
     def exchange_team(self, data):
         other = get_player_by_richness(data)
 
-        if self.name == other.name:
+        if self.get_name() == other.get_name():
             annouce_name_by_richness(data)
             return
         else:
-            forms.alert("Exchanging with {}".format(other.name))
+            forms.alert("Exchanging with {}".format(other.get_name()))
 
-        my_team, other_team = other.team, self.team
-
-        self.model.Symbol.LookupParameter("_property_team").Set( other_team )
-        other.model.Symbol.LookupParameter("_property_team").Set( my_team )
-        self.model.Symbol.LookupParameter("mat.").Set( get_material_by_name(other_team).Id )
-        other.model.Symbol.LookupParameter("mat.").Set( get_material_by_name(my_team).Id )
-        forms.alert("{0} is now {2}\n{1} is now {3}".format(self.name, \
-                                                        other.name, \
+        my_team, other_team = other.get_team(), self.get_team()
+        self.set_team(other_team)
+        other.set_team(my_team)
+        forms.alert("{0} is now in {2}\n{1} is now in {3}".format(self.get_name(), \
+                                                        other.get_name(), \
                                                         other_team, \
                                                         my_team)\
                                                         )
@@ -426,7 +488,11 @@ def get_player_by_richness(data):
         return player_agent(ranked_players[0])
 
 def roll_dice(agent):
-    raw_dice = dice(agent.luck)#this can be the dice
+    use_magic_dice = False
+    if use_magic_dice:
+        raw_dice = magic_dice()
+    else:
+        raw_dice = dice(agent.get_luck())#this can be the dice
     if raw_dice < 0:
         dice_direction = -1
     else:
@@ -434,18 +500,18 @@ def roll_dice(agent):
     total_step = abs(raw_dice)
 
     for step in range(total_step):
-        if agent.is_overweight and step == 4:
+        if agent.get_is_overweight() and step == 4:
             forms.alert("Overweight, too tied, stay here.")
             agent.hold_in_place(1)
             break
 
 
         try:
-            new_position_id = agent.position_id + agent.direction * dice_direction
+            new_position_id = agent.get_position_id() + agent.get_direction() * dice_direction
             move_player(agent, new_position_id)
 
         except:#reach max position, return to zero
-            if agent.direction * dice_direction  == 1:
+            if agent.get_direction() * dice_direction  == 1:
                 new_position_id = 0
             else:
                 new_position_id = _MaxMarkerID
@@ -465,7 +531,7 @@ def roll_dice(agent):
     #print "current_position_id = {}".format(new_position_id)
     #agent.update_position_id(new_position_id)
     if "*random event*" in marker_description:
-        event_card = get_random_event_card(agent.luck)
+        event_card = get_random_event_card(agent.get_luck())
 
         card_title = get_marker_title(event_card)
         card_description = get_marker_description(event_card)
@@ -480,7 +546,7 @@ def roll_dice(agent):
         if get_marker_team(current_marker) == "":
             #print "buy new land"
             purchase_new_land(current_marker, agent)
-        elif get_marker_team(current_marker) == agent.team:
+        elif get_marker_team(current_marker) == agent.get_team():
             #print "upgrade my team land"
             upgrade_land(current_marker, agent)
         else:
@@ -529,8 +595,8 @@ def purchase_new_land(marker, agent):
     inital_price = 1000
     agent.update_money(-inital_price)
 
-    marker.LookupParameter("_property_team").Set(agent.team)
-    marker.LookupParameter("color plate mat.").Set(get_material_by_name(agent.team).Id)
+    marker.LookupParameter("_property_team").Set(agent.get_team())
+    marker.LookupParameter("color plate mat.").Set(get_material_by_name(agent.get_team()).Id)
     marker.LookupParameter("show_color plate").Set(1)
     marker.LookupParameter("_land_value").Set(inital_price)
     marker.LookupParameter("_land_value_text_display").Set("${}".format(inital_price))
@@ -556,26 +622,23 @@ def play_this_player(player):
     with revit.TransactionGroup("Make Move for '{}'".format(player_name)):
         agent = player_agent(player)
 
-        if agent.hold_status != "":
-            if agent.hold_status == "Pit":
+        if agent.get_hold_status() != "":
+            if agent.get_hold_status() == "Pit":
                 agent.update_pit()
-            elif agent.hold_status == "Starter":
-                raw_dice = dice(agent.luck)
+            elif agent.get_hold_status() == "Starter":
+                raw_dice = dice(agent.get_luck())
                 if raw_dice >= 5:
                     move_player(agent, 1)
-                    agent.model.Symbol.LookupParameter("_property_hold_status").Set("")
-                    agent.model.Symbol.LookupParameter("_property_hold_amount").Set(0)
-                    agent.hold_amount = 0
-                    agent.hold_status = ""
-                    #agent.position_id = 1
+                    self.set_hold_amount(0)
+                    self.set_hold_status("")
                 else:
                     forms.alert("You need 5 or more to move on.")
             else:
                 #print "update hold"
                 agent.update_hold()
 
-        #after those update above, you want to recheck the hold amount and move dice
-        if agent.hold_amount == 0:
+        #after those update is cleared above, you want to recheck the hold amount and move dice
+        if agent.get_hold_amount() == 0:
             roll_dice(agent)
 
 
@@ -588,6 +651,9 @@ _PlayerNameKeyword = "$Player_"
 _MaxMarkerID = find_max_marker_id_on_map()
 #print _MaxMarkerID
 _SpeedFactor = 0.005#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
+
+_MarkerID_hospital = -200
+_MarkerID_prision = -100
 
 output = script.get_output()
 killtime = 1000
