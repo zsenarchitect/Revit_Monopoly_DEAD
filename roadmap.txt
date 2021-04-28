@@ -9,9 +9,11 @@ bugs:
 
 
 features:
+- paycheck value should be part of player property
 - reset button with a menu to assign team before player
 - animation when a money uddate happens: a small dollor with wing fly away. also show how much in text instance
 - animation for UFO kidnap
+- visualised dice with a spiner animation
 - progress bar at top telling how many players have moved
 - orientation with piece_script: use angle to turn/update \
   direction toward moving vector, do need to flip model \
@@ -20,7 +22,8 @@ features:
 - more ring for land upgrade visual
 - following camera foucs
 - river and bridge
-- visualised dice with a spiner animation
+- win system rule
+- UI window
 - collision awareness, shift piece slightly if on same marker location
 - when moving piece, aware if there is a nother player in the target step spot, if so, update the tarpet point higher so visually it jump over, however, if it is the finial desitation, then use shift piece method above. note: consider overweight and stop.
 - tool set:
@@ -28,6 +31,10 @@ features:
   *skill and school
   *bomb
   *stopper
+  *steal skill
+  *magic dice
+- better usage of luck system, do some rare card
+
 
 
 improvement:

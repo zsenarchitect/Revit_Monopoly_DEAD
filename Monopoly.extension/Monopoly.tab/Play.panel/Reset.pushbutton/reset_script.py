@@ -26,7 +26,7 @@ def get_players():
         #print family_name
         if _PlayerNameKeyword in family_name:
             if family_name in player_names:
-                forms.alert("Should not have more than one of same player in game.")
+                forms.alert("Should not have more than one of same {} player in game.".format(family_name))
                 script.exit()
             player_collection.append(generic_model)
             player_names.append(family_name)
@@ -105,6 +105,8 @@ def reset_player(player):
         player.Symbol.LookupParameter("_asset_money").Set(5000)
         player.Symbol.LookupParameter("_property_is_overweight").Set(0)
         player.Symbol.LookupParameter("_asset_direction").Set(1)
+        player.Symbol.LookupParameter("_property_paycheck").Set(1000)
+
 
 def reset_marker(marker):
     with revit.Transaction("reset markers"):
