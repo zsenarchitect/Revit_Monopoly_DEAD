@@ -1,5 +1,6 @@
 from pyrevit import revit, DB, forms
 import MATERIAL
+import PLAYER
 
 def update_land_team(marker, team):
     with revit.Transaction("Local Transaction"):
@@ -28,10 +29,10 @@ def get_marker_by_id(marker_id):
         if family_name == "MAP_MARKER" and generic_model.LookupParameter("_marker_position_ID").AsInteger() == int(marker_id):
             return generic_model
 
-def get_prision_id():
+def get_prison_id():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
     for generic_model in generic_models:
-        if generic_model.Symbol.Family.Name == "MAP_MARKER" and generic_model.LookupParameter("_marker_event_title").AsString() == "Prision":
+        if generic_model.Symbol.Family.Name == "MAP_MARKER" and generic_model.LookupParameter("_marker_event_title").AsString() == "Prison":
             return generic_model.LookupParameter("_marker_position_ID").AsInteger()
 
 
@@ -62,7 +63,7 @@ def pay_land(marker, agent):
     team = get_marker_team(marker)
     agent.update_money(-price)
     forms.alert("Paying {} ${}".format(team, price))
-    team_share_money(team, price)#make them evenly share the amount pay
+    PLAYER.team_share_money(team, price)#make them evenly share the amount pay
 
 def purchase_new_land(marker, agent):
     decision = forms.alert(msg = "Land available, do you want to buy it?", options = ["Yes, pay $1000",\

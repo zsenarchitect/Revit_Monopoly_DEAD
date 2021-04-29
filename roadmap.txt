@@ -4,16 +4,17 @@ bugs:
 - hold in place not very clear what \
   is happening, suggest to change to event \
   specific, this can also make better animation per event.
-- land at intersection shouldn't be allowed to buy
 - exchange position not predictiable
+- exit from hospital will jump to the position 31? Need to check hold status and pre-release out
 
 
 features:
-- paycheck value should be part of player property
+- visualised dice with a spiner animation on top of player head. No more dice window pop
+- if land on payday, should get double pay
+- play audio
 - reset button with a menu to assign team before player
 - animation when a money uddate happens: a small dollor with wing fly away. also show how much in text instance
 - animation for UFO kidnap
-- visualised dice with a spiner animation
 - progress bar at top telling how many players have moved
 - orientation with piece_script: use angle to turn/update \
   direction toward moving vector, do need to flip model \
