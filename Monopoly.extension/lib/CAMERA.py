@@ -12,8 +12,10 @@ def get_view_by_name(name, doc):
             return view
 
 def zoom_to_player(player):
-    revit.uidoc.ShowElements(player)
-    revit.doc.Regenerate()
+    return
+    with revit.Transaction("redraw views"):
+        revit.uidoc.ShowElements(player)
+        revit.uidoc.RefreshActiveView()
 
 def update_camera(perspective_view, target):
 

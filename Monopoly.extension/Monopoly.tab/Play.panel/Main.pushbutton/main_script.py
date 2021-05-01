@@ -16,16 +16,9 @@ import UTILITY
 # coding=utf-8
 
 
-
-
-
-
-
 def get_pit():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
     return filter(lambda x: x.Symbol.Family.Name == "PIT", generic_models)[0]
-
-
 
 def get_random_event_card(luck):
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
@@ -38,19 +31,11 @@ def get_random_event_card(luck):
             if luck - 50 < generic_model.LookupParameter("_property_luck").AsInteger() < luck + 50:
                 return generic_model
 
-
-
-
-
-
 def annouce_name_by_richness(data):
     if data == "rich":
         return "Wow! you are the richest"
     elif data == "poor":
         return "Shame! You are the poorest!"
-
-
-
 
 def roll_dice(agent):
     use_magic_dice = False
@@ -70,7 +55,6 @@ def roll_dice(agent):
             agent.hold_in_place(1)
             break
 
-
         try:
             new_position_id = agent.get_position_id() + agent.get_direction() * dice_direction
             PLAYER.move_player(agent, new_position_id)
@@ -83,22 +67,20 @@ def roll_dice(agent):
             #print new_position_id
             PLAYER.move_player(agent, new_position_id)
 
-
         current_marker = MARKER.get_marker_by_id(new_position_id)
         marker_title = MARKER.get_marker_title(current_marker)
         marker_description = MARKER.get_marker_description(current_marker)
         marker_data = MARKER.get_marker_data(current_marker)
         #print marker_description, marker_data
         if "*payday*" in marker_description:
-            agent.update_money(agent.get_paycheck())
+
             for i in range(20):
                 with revit.Transaction("Animation"):
                     MONEY_GATE.spin_gate_fast()
                     revit.uidoc.RefreshActiveView()
-            forms.alert("Passing Payday Gate.\nGetting ${}.".format(agent.get_paycheck()))
+            agent.update_money(agent.get_paycheck())
+            #forms.alert("Passing Payday Gate.\nGetting ${}.".format(agent.get_paycheck()))
 
-    #print "current_position_id = {}".format(new_position_id)
-    #agent.update_position_id(new_position_id)
     if "*random event*" in marker_description:
         event_card = get_random_event_card(agent.get_luck())
 
@@ -110,36 +92,24 @@ def roll_dice(agent):
     else:
         agent.process_event(marker_title, marker_description, marker_data)
 
-
     if MARKER.get_marker_title(current_marker) == "none":
         if MARKER.get_marker_team(current_marker) == "":
-            #print "buy new land"
             MARKER.purchase_new_land(current_marker, agent)
         elif MARKER.get_marker_team(current_marker) == agent.get_team():
-            #print "upgrade my team land"
             MARKER.upgrade_land(current_marker, agent)
         else:
-            #print "pay land"
             MARKER.pay_land(current_marker, agent)
 
 
 
 def play_this_player(player):
     player_name = PLAYER.get_player_name(player)
+    #CAMERA.zoom_to_player(player)
     forms.alert( "Time for {}".format(player_name)  )
 
     #current_view = revit.doc.ActiveView
     #CAMERA.switch_view_to("$Camera_Main", revit.doc)
     #revit.uidoc.RefreshActiveView()
-    """
-    with revit.Transaction("redraw views"):
-        CAMERA.zoom_to_player(player)
-        revit.doc.Regenerate()
-        revit.uidoc.RefreshActiveView()
-        revit.uidoc.UpdateAllOpenViews()
-
-        sleep(1)
-    """
 
     with revit.TransactionGroup("Make Move for '{}'".format(player_name)):
         agent = PLAYER.player_agent(player)
@@ -156,37 +126,31 @@ def play_this_player(player):
                 else:
                     forms.alert("You need 5 or more to move on.")
             else:
-                #print "update hold"
                 agent.update_hold()
 
         #after those update is cleared above, you want to recheck the hold amount and move dice
         if agent.get_hold_amount() == 0:
             roll_dice(agent)
 
-
+    sleep(2)
     #CAMERA.switch_view_to("BATTLE GROUND", revit.doc)
 
 
 
 ################## main code below #####################
-
 _MaxMarkerID = MARKER.find_max_marker_id_on_map()
 #print _MaxMarkerID
-_SpeedFactor = 0.005#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
-
-
+#_SpeedFactor = 0.005#speed factor, 0.01 = less wait = faster, 0.5 = longer wait time = slow
 
 output = script.get_output()
-killtime = 1000
+killtime = 100
 output.self_destruct(killtime)
 
 players = PLAYER.get_players()
-
 """
 player = PLAYER.pick_player(players)
 play_this_player(player)
 """
-
 map(play_this_player, players)
 
 

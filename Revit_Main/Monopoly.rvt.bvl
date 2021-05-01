@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BBParameters xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Items>
+    <BbParameter key="SelectedPageSetup">
+      <Data>
+        <string>0</string>
+        <string />
+      </Data>
+    </BbParameter>
+    <BbParameter key="Encryption">
+      <Data>
+        <string>Prompt %% 0</string>
+        <string>Permissions %% 0</string>
+        <string>Owner %% 0</string>
+        <string>EnablePrinting %% 1</string>
+        <string>PrintQuality %% 1</string>
+        <string>Modify %% 1</string>
+        <string>Annotations %% 1</string>
+        <string>Sign %% 1</string>
+        <string>Insert %% 0</string>
+        <string>Copy %% 1</string>
+        <string>CopyForAccess %% 1</string>
+      </Data>
+    </BbParameter>
+    <BbParameter key="Bookmarks">
+      <Data>
+        <string>0</string>
+        <string>1</string>
+        <string>0</string>
+        <string>1</string>
+        <string>0</string>
+        <string>0</string>
+        <string>0</string>
+        <string>0</string>
+        <string>0</string>
+        <string>0</string>
+        <string>0</string>
+      </Data>
+    </BbParameter>
+    <BbParameter key="BookmarksEx">
+      <Data>
+        <string>0</string>
+        <string />
+        <string>0</string>
+      </Data>
+    </BbParameter>
+  </Items>
+</BBParameters>

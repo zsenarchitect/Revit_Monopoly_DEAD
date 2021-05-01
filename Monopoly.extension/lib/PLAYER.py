@@ -5,10 +5,14 @@ import random
 import CLOUD
 import MONEY_GATE
 import UTILITY
+#import CAMERA
+import MATERIAL
+from time import sleep
 
 class player_agent:
     def __init__(self, generic_model):
         self.model = generic_model
+
 
     def get_name(self):
         return self.model.Symbol.LookupParameter("_property_name").AsString()
@@ -66,6 +70,7 @@ class player_agent:
         if 1 == self.model.Symbol.LookupParameter("_property_is_overweight").AsInteger():
             return True
         return False
+
     def set_is_overweight(self, boolean):
         with revit.Transaction("Local Transaction"):
             if boolean:
@@ -78,11 +83,76 @@ class player_agent:
             print (-UTILITY.mm_to_feet(depth * 1000))
             self.model.LookupParameter("Elevation from Level").Set(-UTILITY.mm_to_feet(depth * 1000))
 
+    def get_hat(self):
+        return filter(lambda x: x.Name == "HAT", map(lambda x: revit.doc.GetElement(x), self.model.GetSubComponentIds ()))[0]
+
+    def hat_set_text(self, text):
+        if isinstance(text, int):
+            mat_name = "money_positive" if text > 0 else "money_negative"
+            final_text = "{}${}".format("-" if text < 0 else "", abs(text))
+            with revit.Transaction("Local Transaction"):
+                self.model.Symbol.LookupParameter("_hat_text").Set(final_text)
+                self.model.Symbol.LookupParameter("_hat_text_mat.").Set(MATERIAL.get_material_by_name(mat_name).Id)
+                self.model.Symbol.LookupParameter("_hat_text_length").Set((len(final_text)/5) * 1800)#make it propertional to the 1800 length
+                print ((len(final_text)/5) * 1800)
+            return
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_hat_text").Set(text)
+
+
+
+    def hat_set_elevation(self, dist):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_hat_elevation").Set(dist)
+
+
+    def hat_set_visibility(self, boolean):
+        with revit.Transaction("Local Transaction"):
+            self.model.Symbol.LookupParameter("_hat_visibility").Set(boolean)
+
+
+    def hat_set_transparency(self, amount):
+        amount = int(amount)
+        if amount > 100:
+            amount = 100
+        if amount < 0:
+            amount = 0
+
+
+        overridesetting = DB.OverrideGraphicSettings ().SetSurfaceTransparency(amount)
+        with revit.Transaction("Local Transaction"):
+            revit.active_view.SetElementOverrides (self.get_hat().Id, overridesetting)
+
+
     def update_money(self, amount):
         self.set_money(self.get_money() + int(amount))
 
+
+        self.hat_set_text(int(amount))
+        self.hat_set_elevation(0)
+        self.hat_set_visibility(True)
+        step = 50
+        for i in range(step):
+            print i
+            """
+            self.hat_set_elevation(UTILITY.mm_to_feet(i*50))
+            """
+            if i > step / 2:
+                self.hat_set_transparency(100/(step/2)*i - 100)#see the graphic from sketchbook
+            else:
+                self.hat_set_transparency(0)
+
+            #sleep(2)
+
+            revit.uidoc.RefreshActiveView()
+            #move iso piece higher and apply fading and turn off eventually
+        self.hat_set_visibility(False)
+
     def update_luck(self, amount):
         self.set_luck(self.get_luck() + int(amount))
+
+    def update_weight(self, amount):
+        self.set_is_overweight(amount)
 
     def update_hold(self):
         current_hold_location = self.get_hold_status()
@@ -273,6 +343,9 @@ class player_agent:
                                                         )
 
 
+
+
+
 def get_players():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
     return filter(lambda x: KEYWORD._PlayerNameKeyword() in x.Symbol.Family.Name, generic_models)
@@ -326,10 +399,11 @@ def move_player(agent, target_marker_id):
         agent.set_position_id(target_marker_id)
         return
 
-    wind = DB.XYZ(random.uniform(-0.1,0.2),random.uniform(-0.1,0.2),0)
+    wind = DB.XYZ(random.uniform(0,0.1)-0.05,random.uniform(0,0.1)-0.05,0)
 
     step = 15
     for i in range(step + 1):
+
         pt_para = float(i)/step
         temp_location = arc.Evaluate(pt_para, True)
         with revit.Transaction("frame update"):
@@ -350,3 +424,4 @@ def move_player(agent, target_marker_id):
         revit.uidoc.RefreshActiveView()
         #revit.uidoc.UpdateAllOpenViews()
     agent.set_position_id(target_marker_id)
+    #CAMERA.zoom_to_player(player)

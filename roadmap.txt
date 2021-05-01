@@ -8,6 +8,7 @@ bugs:
 - exit from hospital will jump to the position 31? Need to check hold status and pre-release out
 
 
+
 features:
 - visualised dice with a spiner animation on top of player head. No more dice window pop
 - if land on payday, should get double pay
