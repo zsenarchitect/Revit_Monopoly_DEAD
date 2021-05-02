@@ -14,7 +14,6 @@ features:
 - if land on payday, should get double pay
 - play audio
 - reset button with a menu to assign team before player
-- animation when a money uddate happens: a small dollor with wing fly away. also show how much in text instance
 - animation for UFO kidnap
 - progress bar at top telling how many players have moved
 - orientation with piece_script: use angle to turn/update \

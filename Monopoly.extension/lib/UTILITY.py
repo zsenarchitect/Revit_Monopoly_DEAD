@@ -4,11 +4,14 @@ from pyrevit import forms
 def mm_to_feet(dist):
     return (int(dist) /1000) * 3.28084
 
+def feet_to_mm(dist):
+    return (int(dist) /3.28084) * 1000
+
 def dice(luck):
     luck = int(luck)
     sample_raw = [-2, -1, 1, 2, 3, 4, 5, 6, 10]#9 item
     #sample_raw = [20]######use me to foce a dice
-    #sample_raw = [4]######use me to foce a dice
+    #sample_raw = [5]######use me to foce a dice
     sample = []
     for item in sample_raw:
         if item < 0 and luck < 30:

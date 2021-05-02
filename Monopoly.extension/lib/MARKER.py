@@ -1,6 +1,7 @@
 from pyrevit import revit, DB, forms
 import MATERIAL
 import PLAYER
+import random
 
 def update_land_team(marker, team):
     with revit.Transaction("Local Transaction"):
@@ -62,7 +63,8 @@ def pay_land(marker, agent):
     price = marker.LookupParameter("_land_value").AsInteger()
     team = get_marker_team(marker)
     agent.update_money(-price)
-    forms.alert("Paying {} ${}".format(team, price))
+    #forms.alert("Paying {} ${}".format(team, price))
+    print "Paying {} ${}".format(team, price)
     PLAYER.team_share_money(team, price)#make them evenly share the amount pay
 
 def purchase_new_land(marker, agent):
@@ -76,13 +78,39 @@ def purchase_new_land(marker, agent):
     update_land_team(marker, agent.get_team())
     update_land_value(marker, inital_price)
 
-def upgrade_land(marker, agent):
+def purchase_abandon_land(marker, agent):
     price = get_marker_land_value(marker)
-    new_price = int(price * 1.5)
-    decision = forms.alert(msg = "Want to upgrade your team land?", options = ["Yes, pay ${}".format(new_price),\
-                                                                                "No."])
+    decision = forms.alert(msg = "Abandoned land available, do you want to buy it?", options = ["Yes, team pay ${}".format(price),\
+                                                                                        "No."])
     if decision == None or "No" in decision:
         return
 
-    agent.update_money(- new_price)
-    update_land_value(marker, new_price )
+    PLAYER.team_share_money(agent.get_team(), -price)
+    update_land_team(marker, agent.get_team())
+
+
+def upgrade_land(marker, agent):
+    price = get_marker_land_value(marker)
+    pay = int(price * 0.5)
+    new_price = price + pay
+    maintaince_fee = int(price * 0.1)
+    if random.random()*100 - 60 > agent.get_luck():
+        decision = forms.alert(msg = "Earthquake! Building collaspe.\nWant to rebuild your team land to ${}?".format(price), \
+                                options = ["Yes, team pay ${}".format(price),"No. Abandon it."])
+        if decision == None or "No" in decision:
+            update_land_team(marker, "abandon")
+            return
+        else:
+            PLAYER.team_share_money(agent.get_team(), -price)
+            return
+
+
+    decision = forms.alert(msg = "Land worths ${}.\nMaintaince fee is 10%.\nWant to upgrade your team land to ${}?".format(price, new_price), \
+                            options = ["Yes, I pay ${}.".format(pay),"No, I just pay ${} maintaince fee.".format(maintaince_fee), "Abandon it."])
+    if decision == None or "No" in decision:
+        agent.update_money(- maintaince_fee)
+    elif "Abandon" in decision:
+        update_land_team(marker, "abandon")
+    else:
+        agent.update_money(- pay)
+        update_land_value(marker, new_price )

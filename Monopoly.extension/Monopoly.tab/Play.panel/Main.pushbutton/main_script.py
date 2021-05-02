@@ -31,11 +31,7 @@ def get_random_event_card(luck):
             if luck - 50 < generic_model.LookupParameter("_property_luck").AsInteger() < luck + 50:
                 return generic_model
 
-def annouce_name_by_richness(data):
-    if data == "rich":
-        return "Wow! you are the richest"
-    elif data == "poor":
-        return "Shame! You are the poorest!"
+
 
 def roll_dice(agent):
     use_magic_dice = False
@@ -58,7 +54,7 @@ def roll_dice(agent):
         try:
             new_position_id = agent.get_position_id() + agent.get_direction() * dice_direction
             PLAYER.move_player(agent, new_position_id)
-
+            print "A{}:new_position_id = {}".format(agent.get_name(),new_position_id)
         except:#reach max position, return to zero
             if agent.get_direction() * dice_direction  == 1:
                 new_position_id = 0
@@ -66,6 +62,7 @@ def roll_dice(agent):
                 new_position_id = _MaxMarkerID
             #print new_position_id
             PLAYER.move_player(agent, new_position_id)
+            print "B{}:new_position_id = {}".format(agent.get_name(),new_position_id)
 
         current_marker = MARKER.get_marker_by_id(new_position_id)
         marker_title = MARKER.get_marker_title(current_marker)
@@ -95,6 +92,8 @@ def roll_dice(agent):
     if MARKER.get_marker_title(current_marker) == "none":
         if MARKER.get_marker_team(current_marker) == "":
             MARKER.purchase_new_land(current_marker, agent)
+        elif MARKER.get_marker_team(current_marker) == "abandon":
+            MARKER.purchase_abandon_land(current_marker, agent)
         elif MARKER.get_marker_team(current_marker) == agent.get_team():
             MARKER.upgrade_land(current_marker, agent)
         else:
@@ -116,7 +115,7 @@ def play_this_player(player):
 
         if agent.get_hold_status() != "":
             if agent.get_hold_status() == "Pit":
-                agent.update_pit()
+                agent.update_hold_pit()
             elif agent.get_hold_status() == "Starter":
                 raw_dice = UTILITY.dice(agent.get_luck())
                 if raw_dice >= 5:
@@ -125,14 +124,16 @@ def play_this_player(player):
                     agent.set_hold_status("")
                 else:
                     forms.alert("You need 5 or more to move on.")
+            elif agent.get_hold_status() == "Hospital":
+                agent.update_hold_hospital()
             else:
                 agent.update_hold()
 
         #after those update is cleared above, you want to recheck the hold amount and move dice
-        if agent.get_hold_amount() == 0:
+        if agent.get_hold_amount() == 0 and agent.get_hold_status() == "":#if player just got hold update to 0, its hold location is still in origitnal place so need to check that as well
             roll_dice(agent)
 
-    sleep(2)
+    #sleep(2)
     #CAMERA.switch_view_to("BATTLE GROUND", revit.doc)
 
 

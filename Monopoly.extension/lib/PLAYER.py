@@ -9,6 +9,41 @@ import UTILITY
 import MATERIAL
 from time import sleep
 
+def fix_overlap_player(player):
+    i = 0
+    while spot_taken(player) or i > 100:
+        #print "shifting"
+        shift_player(player)
+        i += 1
+
+def spot_taken(my_player):
+    all_players = get_players()
+    for player in all_players:
+        if player.Symbol.LookupParameter("_property_name").AsString() == my_player.Symbol.LookupParameter("_property_name").AsString():
+            #print "it is me"
+            continue
+        #print player.Location.Point,my_player.Location.Point
+        if player.Location.Point.DistanceTo(my_player.Location.Point) < 1:
+            #print "same spot"
+            return True
+    return False
+
+def shift_player(player):
+    with revit.Transaction("temp"):
+        center = player.Location.Point
+        angle = random.randrange(0,360)
+        import math
+        x = 1.5 * math.cos(angle)
+        y = 1.5 * math.sin(angle)
+        player.Location.Point = center + DB.XYZ(x, y, 0)
+
+def annouce_name_by_richness(data):
+    if data == "rich":
+        return "Wow! you are the richest"
+    elif data == "poor":
+        return "Shame! You are the poorest!"
+
+
 class player_agent:
     def __init__(self, generic_model):
         self.model = generic_model
@@ -43,10 +78,10 @@ class player_agent:
             self.model.Symbol.LookupParameter("_property_hold_amount").Set(int(amount))
 
     def get_position_id(self):
-        return self.model.Symbol.LookupParameter("_property_positionID").AsInteger()
+        return self.model.LookupParameter("_property_positionID").AsInteger()
     def set_position_id(self, position_id):
         with revit.Transaction("Local Transaction"):
-            self.model.Symbol.LookupParameter("_property_positionID").Set(int(position_id))
+            self.model.LookupParameter("_property_positionID").Set(int(position_id))
 
     def get_direction(self):
         return self.model.Symbol.LookupParameter("_asset_direction").AsInteger()
@@ -90,11 +125,12 @@ class player_agent:
         if isinstance(text, int):
             mat_name = "money_positive" if text > 0 else "money_negative"
             final_text = "{}${}".format("-" if text < 0 else "", abs(text))
+            #print final_text
             with revit.Transaction("Local Transaction"):
                 self.model.Symbol.LookupParameter("_hat_text").Set(final_text)
                 self.model.Symbol.LookupParameter("_hat_text_mat.").Set(MATERIAL.get_material_by_name(mat_name).Id)
-                self.model.Symbol.LookupParameter("_hat_text_length").Set((len(final_text)/5) * 1800)#make it propertional to the 1800 length
-                print ((len(final_text)/5) * 1800)
+                self.model.Symbol.LookupParameter("_hat_text_length").Set(UTILITY.mm_to_feet((len(final_text)/5) * 1800))#make it propertional to the 1800 length
+
             return
         with revit.Transaction("Local Transaction"):
             self.model.Symbol.LookupParameter("_hat_text").Set(text)
@@ -102,8 +138,11 @@ class player_agent:
 
 
     def hat_set_elevation(self, dist):
+        #print "f", dist
         with revit.Transaction("Local Transaction"):
-            self.model.Symbol.LookupParameter("_hat_elevation").Set(dist)
+            self.model.LookupParameter("_hat_elevation").Set(dist)
+        #revit.uidoc.RefreshActiveView()
+
 
 
     def hat_set_visibility(self, boolean):
@@ -129,24 +168,21 @@ class player_agent:
 
 
         self.hat_set_text(int(amount))
-        self.hat_set_elevation(0)
         self.hat_set_visibility(True)
-        step = 50
+        step = 20
         for i in range(step):
-            print i
-            """
-            self.hat_set_elevation(UTILITY.mm_to_feet(i*50))
-            """
+            #print "i = {}".format(i)
             if i > step / 2:
-                self.hat_set_transparency(100/(step/2)*i - 100)#see the graphic from sketchbook
+                transparency = 100/(step/2.0)*(i+1) - 100#see the graphic from sketchbook
             else:
-                self.hat_set_transparency(0)
-
-            #sleep(2)
-
+                transparency = 0
+            #print transparency
+            self.hat_set_elevation(i/ 10.00)
+            self.hat_set_transparency(transparency)
             revit.uidoc.RefreshActiveView()
             #move iso piece higher and apply fading and turn off eventually
         self.hat_set_visibility(False)
+        self.hat_set_elevation(0)
 
     def update_luck(self, amount):
         self.set_luck(self.get_luck() + int(amount))
@@ -158,7 +194,7 @@ class player_agent:
         current_hold_location = self.get_hold_status()
         current_hold_amount = self.get_hold_amount()
         if current_hold_location == None:
-            current_hold_location = " holder place"
+            current_hold_location = "holder place"
 
         #print "&&&&", current_hold_amount
         if current_hold_amount > 0:
@@ -184,10 +220,42 @@ class player_agent:
             current_marker = MARKER.get_marker_by_id(self.get_position_id())
             description = MARKER.get_marker_description(current_marker)
             data = MARKER.get_marker_data(current_marker)
+            print "generic update hold data = {}".format(data)
             if "*exit*" in description:
                 move_player(self, data)# move player to marker of data id
 
-    def update_pit(self):
+
+
+    def update_hold_hospital(self):
+        current_hold_location = self.get_hold_status()
+        current_hold_amount = self.get_hold_amount()
+
+        if current_hold_amount > 0:
+            if current_hold_amount - 1 == 0:
+                additiontal_note = "You will free at next round."
+            else:
+                additiontal_note = ""
+
+            forms.alert("Currently staying in {}\n{} round remains.\n{}".format(current_hold_location, current_hold_amount - 1, additiontal_note))
+            self.set_hold_amount(current_hold_amount - 1)
+            forms.alert("Hospital Bill: $500")
+            self.update_money(-500)
+
+        else:
+            forms.alert("You are free from {}".format(current_hold_location))
+            if self.get_is_overweight() and current_hold_location == "Hospital":
+                self.set_is_overweight(False)
+                forms.alert("Doctor cured your overweight")
+
+            self.set_hold_status("")
+            self.set_hold_amount(0)
+            current_marker = MARKER.get_marker_by_id(self.get_position_id())
+            description = MARKER.get_marker_description(current_marker)
+            data = MARKER.get_marker_data(current_marker)
+            print "hospital exit data = {}".format(data)
+            move_player(self, data)# move player to marker of data id
+
+    def update_hold_pit(self):
         depth = self.get_hold_amount()
         raw_dice = dice(self.get_luck())
         if raw_dice >= depth:
@@ -295,14 +363,9 @@ class player_agent:
             forms.alert("Exchanging with {}".format(other.get_name()))
 
         my_id, other_id = other.get_position_id(), self.get_position_id()
-        move_player(self, other_id)
-        move_player(other, my_id)
         try:
-            pass
-            """
             move_player(self, other_id)
             move_player(other, my_id)
-            """
         except:
             forms.alert("On same spot. Swicth looks the same.")
 
@@ -374,7 +437,8 @@ def team_share_money(team, money):
     team_players_models = filter(lambda x: x.Symbol.LookupParameter("_property_team").AsString() == team, get_players())
     team_players_agents = map(lambda x: player_agent(x), team_players_models)
     #print team_players_agents, team_players_models
-    forms.alert( "everyone on {} will get ${}".format(team, money/len(team_players_agents))  )
+    #forms.alert( "everyone on {} will get ${}".format(team, money/len(team_players_agents))  )
+    print "everyone on {} will get ${}".format(team, money/len(team_players_agents))
     map(lambda x: x.update_money(money/len(team_players_agents)), team_players_agents)
 
 def get_player_by_richness(data):
@@ -399,7 +463,8 @@ def move_player(agent, target_marker_id):
         agent.set_position_id(target_marker_id)
         return
 
-    wind = DB.XYZ(random.uniform(0,0.1)-0.05,random.uniform(0,0.1)-0.05,0)
+    wind = DB.XYZ(random.random()-0.25,random.random()-0.25,0)
+    print "wind = {}".format(wind)
 
     step = 15
     for i in range(step + 1):
@@ -424,4 +489,5 @@ def move_player(agent, target_marker_id):
         revit.uidoc.RefreshActiveView()
         #revit.uidoc.UpdateAllOpenViews()
     agent.set_position_id(target_marker_id)
+    fix_overlap_player(agent.model)
     #CAMERA.zoom_to_player(player)

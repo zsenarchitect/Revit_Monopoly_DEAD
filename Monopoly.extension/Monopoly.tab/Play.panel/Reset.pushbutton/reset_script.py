@@ -62,7 +62,7 @@ def move_player(player, target_marker_id):
         pause_time = 0.25 + safety - speed# 1/4 is the peak value in normalised condition
         sleep(pause_time * 0.05)
     with revit.Transaction("temp"):
-        player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
+        player.LookupParameter("_property_positionID").Set(target_marker_id)
 
 
 def spot_taken(my_player):
@@ -100,7 +100,7 @@ def reset_player(player):
     with revit.Transaction("temp"):
         player.Symbol.LookupParameter("_property_hold_status").Set("Starter")
         player.Symbol.LookupParameter("_property_hold_amount").Set(1)
-        player.Symbol.LookupParameter("_property_positionID").Set(-50)
+        player.LookupParameter("_property_positionID").Set(-50)
         player.Symbol.LookupParameter("_property_luck").Set(50)
         player.Symbol.LookupParameter("_asset_money").Set(5000)
         player.Symbol.LookupParameter("_property_is_overweight").Set(0)
