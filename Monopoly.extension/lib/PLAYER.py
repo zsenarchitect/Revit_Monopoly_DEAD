@@ -135,20 +135,15 @@ class player_agent:
         with revit.Transaction("Local Transaction"):
             self.model.Symbol.LookupParameter("_hat_text").Set(text)
 
-
-
     def hat_set_elevation(self, dist):
         #print "f", dist
         with revit.Transaction("Local Transaction"):
             self.model.LookupParameter("_hat_elevation").Set(dist)
         #revit.uidoc.RefreshActiveView()
 
-
-
     def hat_set_visibility(self, boolean):
         with revit.Transaction("Local Transaction"):
             self.model.Symbol.LookupParameter("_hat_visibility").Set(boolean)
-
 
     def hat_set_transparency(self, amount):
         amount = int(amount)
@@ -157,15 +152,12 @@ class player_agent:
         if amount < 0:
             amount = 0
 
-
         overridesetting = DB.OverrideGraphicSettings ().SetSurfaceTransparency(amount)
         with revit.Transaction("Local Transaction"):
             revit.active_view.SetElementOverrides (self.get_hat().Id, overridesetting)
 
-
     def update_money(self, amount):
         self.set_money(self.get_money() + int(amount))
-
 
         self.hat_set_text(int(amount))
         self.hat_set_visibility(True)
@@ -211,7 +203,7 @@ class player_agent:
 
         else:
             forms.alert("You are free from {}".format(current_hold_location))
-            if self.get_is_overweight() and current_hold_location == "Hospital":
+            if self.get_is_overweight():
                 self.set_is_overweight(False)
                 forms.alert("Doctor cured your overweight")
 
@@ -224,7 +216,30 @@ class player_agent:
             if "*exit*" in description:
                 move_player(self, data)# move player to marker of data id
 
+    def update_hold_prison(self):
+        current_hold_location = self.get_hold_status()
+        current_hold_amount = self.get_hold_amount()
 
+        if current_hold_amount > 0:
+            if current_hold_amount - 1 == 0:
+                additiontal_note = "You will free at next round."
+            else:
+                additiontal_note = ""
+
+            forms.alert("Currently staying in {}\n{} round remains.\n{}".format(current_hold_location, current_hold_amount - 1, additiontal_note))
+            self.set_hold_amount(current_hold_amount - 1)
+
+
+        else:
+            forms.alert("You are free from {}".format(current_hold_location))
+
+            self.set_hold_status("")
+            self.set_hold_amount(0)
+            current_marker = MARKER.get_marker_by_id(self.get_position_id())
+            description = MARKER.get_marker_description(current_marker)
+            data = MARKER.get_marker_data(current_marker)
+            print "prison exit data = {}".format(data)
+            move_player(self, data)# move player to marker of data id
 
     def update_hold_hospital(self):
         current_hold_location = self.get_hold_status()
@@ -255,6 +270,30 @@ class player_agent:
             print "hospital exit data = {}".format(data)
             move_player(self, data)# move player to marker of data id
 
+    def update_hold_UFO(self):
+        current_hold_location = self.get_hold_status()
+        current_hold_amount = self.get_hold_amount()
+
+        if current_hold_amount > 0:
+            if current_hold_amount - 1 == 0:
+                additiontal_note = "You will free at next round."
+            else:
+                additiontal_note = ""
+
+            forms.alert("Currently staying in {}\n{} round remains.\n{}".format(current_hold_location, current_hold_amount - 1, additiontal_note))
+            self.set_hold_amount(current_hold_amount - 1)
+
+
+        else:
+            forms.alert("You are free from {}".format(current_hold_location))
+            """
+            animation UFO come back and rotae and show player
+            """
+            self.set_hold_status("")
+            self.set_hold_amount(0)
+
+
+
     def update_hold_pit(self):
         depth = self.get_hold_amount()
         raw_dice = dice(self.get_luck())
@@ -270,7 +309,7 @@ class player_agent:
             self.set_hold_amount(depth)
             pit_marker = MARKER.get_marker_by_id(self.get_position_id())
             pit_marker.LookupParameter("_marker_event_data").Set(str(depth))
-            pit = get_pit()
+            pit = UTILITY.get_pit()
             pit.LookupParameter("depth").Set(int(depth))
             self.set_elevation(depth)
         else:
@@ -307,6 +346,20 @@ class player_agent:
         forms.alert("The pit is {0}m deep, you will later need to roll {0} or more to get out.".format(depth))
         self.set_elevation(depth)
 
+    def hold_in_UFO(self, hold_amount):
+        self.set_hold_amount(hold_amount)
+        self.set_hold_status("UFO")
+
+        ufo = UTILITY.get_ufo()
+        with revit.Transaction("Local"):
+            ufo.Location.Point = self.model.Location.Point
+        step = 60
+        for i in range(step):
+            UTILITY.ufo_spin()
+            revit.uidoc.RefreshActiveView()
+        """
+        ufo animation to rotate  show , decede, and hide player transparency, then hide UFO
+        """
 
     def process_event(self, title, description, data):
 
@@ -330,8 +383,16 @@ class player_agent:
 
         if "*flip direction*" in description:
             self.flip_direction()
+
         if "*pit*" in description:
             self.hold_in_pit(data)
+
+        if "*UFO*" in description:
+            self.hold_in_UFO(data)
+
+        if "*payday*" in description:
+            print "Get additional pay!"
+            self.update_money(self.get_paycheck())
 
         if "*transfer*" in description:
             forms.alert("Intersection Point, switch road.")

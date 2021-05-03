@@ -1,11 +1,43 @@
 import random
-from pyrevit import forms
+import math
+from pyrevit import forms, DB, revit
 
 def mm_to_feet(dist):
+    print "mm to ft: {}-->{}".format(dist, (int(dist) /1000) * 3.28084)
     return (int(dist) /1000) * 3.28084
 
 def feet_to_mm(dist):
     return (int(dist) /3.28084) * 1000
+
+def get_pit():
+    generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
+    return filter(lambda x: x.Symbol.Family.Name == "PIT", generic_models)[0]
+
+def get_ufo():
+    generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
+    return filter(lambda x: x.Symbol.Family.Name == "UFO", generic_models)[0]
+
+def ufo_spin():
+    ufo = get_ufo()
+    para = ufo.LookupParameter("angle")
+    angle = ( (para.AsDouble() / math.pi) * 180 + 1) % 360
+    with revit.Transaction("Local Transaction"):
+        para.Set(angle*math.pi/ 180)
+
+def ufo_show_beam(ufo, boolean):
+    with revit.Transaction("Local Transaction"):
+        ufo.LookupParameter("show_beam").Set(boolean)
+
+def ufo_set_transparency(ufo, amount):
+    amount = int(amount)
+    if amount > 100:
+        amount = 100
+    if amount < 0:
+        amount = 0
+
+    overridesetting = DB.OverrideGraphicSettings ().SetSurfaceTransparency(amount)
+    with revit.Transaction("Local Transaction"):
+        revit.active_view.SetElementOverrides (ufo.Id, overridesetting)
 
 def dice(luck):
     luck = int(luck)

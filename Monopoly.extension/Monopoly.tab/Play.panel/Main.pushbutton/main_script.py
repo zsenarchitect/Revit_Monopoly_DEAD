@@ -16,9 +16,7 @@ import UTILITY
 # coding=utf-8
 
 
-def get_pit():
-    generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
-    return filter(lambda x: x.Symbol.Family.Name == "PIT", generic_models)[0]
+
 
 def get_random_event_card(luck):
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
@@ -126,6 +124,10 @@ def play_this_player(player):
                     forms.alert("You need 5 or more to move on.")
             elif agent.get_hold_status() == "Hospital":
                 agent.update_hold_hospital()
+            elif agent.get_hold_status() == "Prison":
+                agent.update_hold_prison()
+            elif agent.get_hold_status() == "UFO":
+                agent.update_hold_UFO()
             else:
                 agent.update_hold()
 

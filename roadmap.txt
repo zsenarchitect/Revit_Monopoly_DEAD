@@ -10,6 +10,7 @@ bugs:
 
 
 features:
+- if player in prison should not receive/pay money from other people
 - visualised dice with a spiner animation on top of player head. No more dice window pop
 - if land on payday, should get double pay
 - play audio
