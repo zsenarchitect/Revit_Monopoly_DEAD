@@ -9,6 +9,12 @@ def mm_to_feet(dist):
 def feet_to_mm(dist):
     return (int(dist) /3.28084) * 1000
 
+def rad_to_degree(rad):
+    return (rad / math.pi ) *180
+
+def degree_to_rad(degree):
+    return (degree /180)*math.pi
+
 def get_pit():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
     return filter(lambda x: x.Symbol.Family.Name == "PIT", generic_models)[0]
@@ -17,10 +23,9 @@ def get_ufo():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
     return filter(lambda x: x.Symbol.Family.Name == "UFO", generic_models)[0]
 
-def ufo_spin():
-    ufo = get_ufo()
+def ufo_spin(ufo):
     para = ufo.LookupParameter("angle")
-    angle = ( (para.AsDouble() / math.pi) * 180 + 1) % 360
+    angle = ( (para.AsDouble() / math.pi) * 180 -2 ) % 360
     with revit.Transaction("Local Transaction"):
         para.Set(angle*math.pi/ 180)
 
@@ -35,7 +40,13 @@ def ufo_set_transparency(ufo, amount):
     if amount < 0:
         amount = 0
 
+    print "transparency ufo = {}".format(amount)
     overridesetting = DB.OverrideGraphicSettings ().SetSurfaceTransparency(amount)
+    with revit.Transaction("Local Transaction"):
+        revit.active_view.SetElementOverrides (ufo.Id, overridesetting)
+
+def ufo_reset_transparency(ufo):
+    overridesetting = DB.OverrideGraphicSettings ()
     with revit.Transaction("Local Transaction"):
         revit.active_view.SetElementOverrides (ufo.Id, overridesetting)
 

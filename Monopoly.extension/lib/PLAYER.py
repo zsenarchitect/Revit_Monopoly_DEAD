@@ -8,6 +8,8 @@ import UTILITY
 #import CAMERA
 import MATERIAL
 from time import sleep
+import math
+import SOUND
 
 def fix_overlap_player(player):
     i = 0
@@ -158,7 +160,7 @@ class player_agent:
 
     def update_money(self, amount):
         self.set_money(self.get_money() + int(amount))
-
+        SOUND.money(int(amount))
         self.hat_set_text(int(amount))
         self.hat_set_visibility(True)
         step = 20
@@ -351,12 +353,26 @@ class player_agent:
         self.set_hold_status("UFO")
 
         ufo = UTILITY.get_ufo()
+        print ufo
         with revit.Transaction("Local"):
             ufo.Location.Point = self.model.Location.Point
+
         step = 60
-        for i in range(step):
-            UTILITY.ufo_spin()
+        #UTILITY.ufo_set_transparency(ufo, 0)
+        for i in range(step+1):
+            print "i = {}".format(i)
+            if 0.4 < float(i)/step < 0.6 or float(i)/step < 0.2 or float(i)/step > 0.8:
+                UTILITY.ufo_show_beam(ufo, True)
+            else:
+                UTILITY.ufo_show_beam(ufo, False)
+
+            UTILITY.ufo_spin(ufo)
+            t = 100 - 100 * math.sin((float(i)/step)*math.pi)
+            #UTILITY.ufo_set_transparency(ufo, t)
             revit.uidoc.RefreshActiveView()
+
+        UTILITY.ufo_reset_transparency(ufo)
+        revit.uidoc.RefreshActiveView()
         """
         ufo animation to rotate  show , decede, and hide player transparency, then hide UFO
         """
@@ -365,6 +381,7 @@ class player_agent:
 
         if title != "none" and "*" not in title:
             forms.alert("{}".format(title))
+
 
         if "*hospital*" in description:
             hold_amount = data
@@ -391,7 +408,7 @@ class player_agent:
             self.hold_in_UFO(data)
 
         if "*payday*" in description:
-            print "Get additional pay!"
+            print "Get additional pay when land on payday gate!"
             self.update_money(self.get_paycheck())
 
         if "*transfer*" in description:
@@ -499,7 +516,7 @@ def team_share_money(team, money):
     team_players_agents = map(lambda x: player_agent(x), team_players_models)
     #print team_players_agents, team_players_models
     #forms.alert( "everyone on {} will get ${}".format(team, money/len(team_players_agents))  )
-    print "everyone on {} will get ${}".format(team, money/len(team_players_agents))
+    #print "everyone on {} will get ${}".format(team, money/len(team_players_agents))
     map(lambda x: x.update_money(money/len(team_players_agents)), team_players_agents)
 
 def get_player_by_richness(data):
@@ -526,10 +543,10 @@ def move_player(agent, target_marker_id):
 
     wind = DB.XYZ(random.random()-0.25,random.random()-0.25,0)
     print "wind = {}".format(wind)
-
+    SOUND.jumping(agent.get_is_overweight())
     step = 15
     for i in range(step + 1):
-
+        UTILITY.ufo_spin(UTILITY.get_ufo())
         pt_para = float(i)/step
         temp_location = arc.Evaluate(pt_para, True)
         with revit.Transaction("frame update"):
@@ -549,6 +566,7 @@ def move_player(agent, target_marker_id):
         #revit.doc.Regenerate()
         revit.uidoc.RefreshActiveView()
         #revit.uidoc.UpdateAllOpenViews()
+    SOUND.landing(agent.get_is_overweight())
     agent.set_position_id(target_marker_id)
     fix_overlap_player(agent.model)
     #CAMERA.zoom_to_player(player)

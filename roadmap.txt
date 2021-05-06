@@ -1,22 +1,15 @@
 bugs:
 - Chinese text in popout window from script
-- overweight and stop not predictable
-- hold in place not very clear what \
-  is happening, suggest to change to event \
-  specific, this can also make better animation per event.
 - exchange position not predictiable
-- exit from hospital will jump to the position 31? Need to check hold status and pre-release out
-
+- pit crash script
 
 
 features:
 - if player in prison should not receive/pay money from other people
 - visualised dice with a spiner animation on top of player head. No more dice window pop
-- if land on payday, should get double pay
 - play audio
 - reset button with a menu to assign team before player
 - animation for UFO kidnap
-- progress bar at top telling how many players have moved
 - orientation with piece_script: use angle to turn/update \
   direction toward moving vector, do need to flip model \
   face(so you can see the direction of walking before piece \
@@ -26,7 +19,6 @@ features:
 - river and bridge
 - win system rule
 - UI window
-- collision awareness, shift piece slightly if on same marker location
 - when moving piece, aware if there is a nother player in the target step spot, if so, update the tarpet point higher so visually it jump over, however, if it is the finial desitation, then use shift piece method above. note: consider overweight and stop.
 - tool set:
   *demolistion
@@ -36,7 +28,7 @@ features:
   *steal skill
   *magic dice
 - better usage of luck system, do some rare card
-
+- if new person come to prison, existing person can pre-release and the new player carry over the prison hold
 
 
 improvement:
@@ -44,15 +36,8 @@ improvement:
 - separate the main script to smaller piece
 - reduce agent class to Get/Set_para_name method, eliminate \
   the class property other than self.model
-- use more local transaction under main transaction group.\
-  use local transaction only when : \
-    *update instance data, \
-    *update location, \
-    *update map data, \
-    *update animation
 - dont need to use "__asset"/"_property" prefix?
 - FOR 2.0: position id changed from integer to str so locations like hospotal can be searchable insetad of predefined
-- "update hold" fuction seperated as event specific(update hopistal, update prision, update kidnappe)
 - no class agent? maybe just a seperate lib script?----NO, just put whole class on a lib file
 - list important global marker id:
   hospital = -100

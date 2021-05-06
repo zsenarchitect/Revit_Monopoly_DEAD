@@ -44,7 +44,7 @@ def move_player(player, target_marker_id):
             mid_pt_new = DB.XYZ(mid_pt.X, mid_pt.Y, mid_pt.Z + line.Length/2.0)
             arc = DB.Arc.Create(initial_pt, final_pt, mid_pt_new)
         except:#on distant too small
-            player.Symbol.LookupParameter("_property_positionID").Set(target_marker_id)
+            player.LookupParameter("_property_positionID").Set(target_marker_id)
             return
 
     step = 50

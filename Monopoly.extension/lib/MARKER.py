@@ -68,7 +68,7 @@ def pay_land(marker, agent):
     PLAYER.team_share_money(team, price)#make them evenly share the amount pay
 
 def purchase_new_land(marker, agent):
-    decision = forms.alert(msg = "Land available, do you want to buy it?", options = ["Yes, pay $1000",\
+    decision = forms.alert(msg = "Land available, do you want to buy it?", options = ["Yes, I pay $1000",\
                                                                                         "No."])
     if decision == None or "No" in decision:
         return
@@ -80,8 +80,8 @@ def purchase_new_land(marker, agent):
 
 def purchase_abandon_land(marker, agent):
     price = get_marker_land_value(marker)
-    decision = forms.alert(msg = "Abandoned land available, do you want to buy it?", options = ["Yes, team pay ${}".format(price),\
-                                                                                        "No."])
+    decision = forms.alert(msg = "Abandoned land available, do you want to buy it?", \
+                            options = ["Yes, team pay ${}".format(price),"No."])
     if decision == None or "No" in decision:
         return
 
@@ -106,11 +106,12 @@ def upgrade_land(marker, agent):
 
 
     decision = forms.alert(msg = "Land worths ${}.\nMaintaince fee is 10%.\nWant to upgrade your team land to ${}?".format(price, new_price), \
-                            options = ["Yes, I pay ${}.".format(pay),"No, I just pay ${} maintaince fee.".format(maintaince_fee), "Abandon it."])
+                            options = ["Yes, team pay ${}.".format(pay),"No, I just pay ${} maintaince fee.".format(maintaince_fee), "Abandon it."])
     if decision == None or "No" in decision:
         agent.update_money(- maintaince_fee)
     elif "Abandon" in decision:
         update_land_team(marker, "abandon")
     else:
-        agent.update_money(- pay)
+        PLAYER.team_share_money(agent.get_team(), -pay)
+        #agent.update_money(- pay)
         update_land_value(marker, new_price )
