@@ -5,6 +5,8 @@ bugs:
 
 
 features:
+-update get_paycheck
+- huge pay to avoid in orision event card
 - if player in prison should not receive/pay money from other people
 - visualised dice with a spiner animation on top of player head. No more dice window pop
 - play audio

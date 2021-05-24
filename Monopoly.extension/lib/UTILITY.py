@@ -19,17 +19,43 @@ def get_pit():
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
     return filter(lambda x: x.Symbol.Family.Name == "PIT", generic_models)[0]
 
-def get_ufo():
+def get_ufo(player_name):
     generic_models = DB.FilteredElementCollector(revit.doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
-    return filter(lambda x: x.Symbol.Family.Name == "UFO", generic_models)[0]
 
+    ufos = filter(lambda x: x.Symbol.Family.Name == "UFO" , generic_models)
+    try:
+        ufo = filter(lambda x: x.LookupParameter("victim").AsString() == player_name, ufos)[0]
+        return ufo
+
+    except:
+
+        symbols = DB.FilteredElementCollector(revit.doc).OfClass(DB.FamilySymbol).ToElements()
+        for x in symbols:
+            print x
+            print x.FamilyName
+        """
+        symbol = filter(lambda x: x.Name == "UFO_main" ,\
+                        symbols)[0]
+        with revit.Transaction("new ufo"):
+            new_ufo = DB.ItemFactoryBase().NewFamilyInstance(DB.XYZ(0,0,0), symbol, DB.StructuralType.NonStructural)
+            new_ufo.LookupParameter("victim").Set(player_name)
+            return new_ufo
+        """
 def ufo_spin(ufo):
     para = ufo.LookupParameter("angle")
     angle = ( (para.AsDouble() / math.pi) * 180 -2 ) % 360
     with revit.Transaction("Local Transaction"):
         para.Set(angle*math.pi/ 180)
 
+def ufo_leave(ufo):
+    with revit.Transaction("Local"):
+        ufo.Location.Point += DB.XYZ(0,0,0.5)
+        ufo_spin(ufo)
+
 def ufo_show_beam(ufo, boolean):
+    if ufo.LookupParameter("show_beam").AsInteger() == boolean:
+        print "skip"
+        return
     with revit.Transaction("Local Transaction"):
         ufo.LookupParameter("show_beam").Set(boolean)
 

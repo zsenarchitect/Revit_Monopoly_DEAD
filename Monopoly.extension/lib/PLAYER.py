@@ -287,6 +287,10 @@ class player_agent:
 
 
         else:
+            ufo = UTILITY.get_ufo(self.get_name())
+            for i in range(20):
+                UTILITY.ufo_leave(ufo)
+                revit.uidoc.RefreshActiveView()
             forms.alert("You are free from {}".format(current_hold_location))
             """
             animation UFO come back and rotae and show player
@@ -352,27 +356,32 @@ class player_agent:
         self.set_hold_amount(hold_amount)
         self.set_hold_status("UFO")
 
-        ufo = UTILITY.get_ufo()
+        ufo = UTILITY.get_ufo(self.get_name())
         print ufo
         with revit.Transaction("Local"):
             ufo.Location.Point = self.model.Location.Point
 
         step = 60
+
         #UTILITY.ufo_set_transparency(ufo, 0)
         for i in range(step+1):
             print "i = {}".format(i)
+            """
             if 0.4 < float(i)/step < 0.6 or float(i)/step < 0.2 or float(i)/step > 0.8:
+                print "show beam"
                 UTILITY.ufo_show_beam(ufo, True)
             else:
+                print "hide beam"
                 UTILITY.ufo_show_beam(ufo, False)
-
+            """
             UTILITY.ufo_spin(ufo)
-            t = 100 - 100 * math.sin((float(i)/step)*math.pi)
-            #UTILITY.ufo_set_transparency(ufo, t)
+            t = 100 - 150 * math.sin((float(i)/step)*math.pi)
+            print t
+            UTILITY.ufo_set_transparency(ufo, t)
             revit.uidoc.RefreshActiveView()
 
-        UTILITY.ufo_reset_transparency(ufo)
-        revit.uidoc.RefreshActiveView()
+        #UTILITY.ufo_reset_transparency(ufo)
+        #revit.uidoc.RefreshActiveView()
         """
         ufo animation to rotate  show , decede, and hide player transparency, then hide UFO
         """
@@ -458,8 +467,10 @@ class player_agent:
             forms.alert("Exchanging with {}".format(other.get_name()))
 
         my_money, other_money = other.get_money(), self.get_money()
-        self.set_money(other_money)
-        other.set_money(my_money)
+        self.update_money(-my_money)
+        self.update_money(other_money)
+        other.update_money(-other_money)
+        other.update_money(my_money)
         forms.alert("{0} gives {2} to {1}\n{1} gives {3} to {0}".format(self.get_name(), \
                                                                         other.get_name(), \
                                                                         my_money, \
@@ -478,10 +489,9 @@ class player_agent:
         self.set_team(other_team)
         other.set_team(my_team)
         forms.alert("{0} is now in {2}\n{1} is now in {3}".format(self.get_name(), \
-                                                        other.get_name(), \
-                                                        other_team, \
-                                                        my_team)\
-                                                        )
+                                                                other.get_name(), \
+                                                                other_team, \
+                                                                my_team))
 
 
 
@@ -544,9 +554,9 @@ def move_player(agent, target_marker_id):
     wind = DB.XYZ(random.random()-0.25,random.random()-0.25,0)
     print "wind = {}".format(wind)
     SOUND.jumping(agent.get_is_overweight())
-    step = 15
+    step = 20 if agent.get_is_overweight() else 10
     for i in range(step + 1):
-        UTILITY.ufo_spin(UTILITY.get_ufo())
+        #UTILITY.ufo_spin(UTILITY.get_ufo())
         pt_para = float(i)/step
         temp_location = arc.Evaluate(pt_para, True)
         with revit.Transaction("frame update"):
