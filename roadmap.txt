@@ -32,7 +32,7 @@ features:
 - better usage of luck system, do some rare card
 - if new person come to prison, existing person can pre-release and the new player carry over the prison hold
 
-
+s
 improvement:
 - orientation with piece_model
 - separate the main script to smaller piece
